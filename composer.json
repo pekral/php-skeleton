@@ -1,0 +1,148 @@
+{
+  "name": "pekral/php-skeleton",
+  "description": "Modern PHP package skeleton with strict quality rules, PHPStan max level, Pest testing, and best practices baked in",
+  "license": "MIT",
+  "type": "project",
+  "keywords": [
+    "php",
+    "skeleton",
+    "template",
+    "boilerplate",
+    "package",
+    "phpstan",
+    "pest",
+    "pint",
+    "rector",
+    "quality",
+    "best-practices",
+    "php84"
+  ],
+  "authors": [
+    {
+      "name": "Petr Král",
+      "email": "kral.petr.88@gmail.com",
+      "homepage": "https://github.com/pekral",
+      "role": "Maintainer"
+    }
+  ],
+  "homepage": "https://github.com/pekral/php-skeleton",
+  "support": {
+    "issues": "https://github.com/pekral/php-skeleton/issues",
+    "source": "https://github.com/pekral/php-skeleton"
+  },
+  "funding": [
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/pekral"
+    }
+  ],
+  "require": {
+    "php": "^8.4"
+  },
+  "require-dev": {
+    "ergebnis/composer-normalize": "^2.48.2",
+    "laravel/pint": "^1.27.0",
+    "pekral/cursor-rules": "dev-master",
+    "pekral/phpcs-rules": "dev-master",
+    "pekral/rector-rules": "dev-master",
+    "pestphp/pest": "^4.3.1",
+    "pestphp/pest-plugin-type-coverage": "^4.0.3",
+    "phpstan/extension-installer": "^1.4.3",
+    "phpstan/phpstan": "^2.1.33",
+    "phpstan/phpstan-deprecation-rules": "^2.0.3",
+    "phpstan/phpstan-mockery": "^2.0",
+    "phpstan/phpstan-phpunit": "^2.0.11",
+    "roave/security-advisories": "dev-latest",
+    "squizlabs/php_codesniffer": ">=4.0.1"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "autoload": {
+    "psr-4": {
+      "Pekral\\Example\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Pekral\\Test\\": "tests/"
+    }
+  },
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true,
+      "ergebnis/composer-normalize": true,
+      "pestphp/pest-plugin": true,
+      "phpstan/extension-installer": false
+    },
+    "bump-after-update": true,
+    "sort-packages": true
+  },
+  "scripts": {
+    "analyse": [
+      "echo \"🔍 Running PHPStan static analysis...\"",
+      "vendor/bin/phpstan analyse --memory-limit=2G"
+    ],
+    "check": [
+      "echo \"🚀 Running full quality check...\"",
+      "@normalize-check",
+      "@phpcs-check",
+      "@pint-check",
+      "@rector-check",
+      "@analyse",
+      "@security-audit",
+      "@test:coverage"
+    ],
+    "coverage": [
+      "echo \"📊 Running code coverage analysis...\"",
+      "@test:coverage"
+    ],
+    "fix": [
+      "echo \"🔧 Running all fixes...\"",
+      "@normalize-fix",
+      "@rector-fix",
+      "@pint-fix",
+      "@phpcs-fix",
+      "echo \"✅ All fixes completed!\""
+    ],
+    "normalize-check": [
+      "echo \"📝 Checking Composer normalize...\"",
+      "composer normalize --dry-run"
+    ],
+    "normalize-fix": [
+      "echo \"📝 Running Composer normalize fix...\"",
+      "composer normalize || true"
+    ],
+    "phpcs-check": [
+      "echo \"✅ Running PHP CodeSniffer check...\"",
+      "vendor/bin/phpcs --standard=ruleset.xml src/ tests/"
+    ],
+    "phpcs-fix": [
+      "echo \"🔧 Running PHP CodeSniffer fix...\"",
+      "vendor/bin/phpcbf --standard=ruleset.xml src/ tests/ || true"
+    ],
+    "pint-check": [
+      "echo \"🎨 Running Laravel Pint check...\"",
+      "vendor/bin/pint src/ tests/ --test"
+    ],
+    "pint-fix": [
+      "echo \"🎨 Running Laravel Pint fixes...\"",
+      "vendor/bin/pint src/ tests/"
+    ],
+    "rector-check": [
+      "echo \"🔄 Running Rector check (dry-run)...\"",
+      "vendor/bin/rector process --dry-run"
+    ],
+    "rector-fix": [
+      "echo \"🔄 Running Rector fixes...\"",
+      "vendor/bin/rector process"
+    ],
+    "security-audit": [
+      "echo \"🔒 Running Composer security audit...\"",
+      "composer audit --format=summary"
+    ],
+    "test:coverage": [
+      "echo \"📊 Running coverage tests with 100% minimum...\"",
+      "php -dpcov.enabled=1 -dpcov.directory=. -dxdebug.mode=off vendor/bin/pest tests/Unit/Example.php --coverage --min=100 --coverage-filter=src"
+    ]
+  }
+}
