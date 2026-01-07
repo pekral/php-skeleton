@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<ruleset name="Arch App Services PHPCS Rules">
+    <description>Custom PHPCS rules for Arch App Services package</description>
+    <!-- Include pekral/phpcs-rules -->
+    <rule ref="vendor/pekral/phpcs-rules/ruleset.xml"/>
+</ruleset>
