@@ -7,6 +7,7 @@ parameters:
     paths:
         - src
         - tests
+        - build-package
     treatPhpDocTypesAsCertain: false
 
     bootstrapFiles:
