@@ -1,8 +1,8 @@
 /vendor/
 .phpunit.result.cache
-/.idea/
-/.cursor/
+.idea/
+.cursor/
 /coverage-html/
 coverage.xml
 /build/
-.DS_Store/
+.DS_Store

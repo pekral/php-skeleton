@@ -8,7 +8,7 @@
 
 > 🚀 Modern PHP package skeleton with strict quality rules and best practices baked in.
 
-Start your next PHP package with confidence. This skeleton comes pre-configured with industry-standard tools for static analysis, testing, and code quality.
+Start your next PHP package with confidence. This skeleton comes pre-configured with industry-standard tools for static analysis, testing, and code quality — and includes an **interactive installer** that configures everything for you.
 
 ---
 
@@ -22,6 +22,7 @@ Start your next PHP package with confidence. This skeleton comes pre-configured 
 | **[Rector](https://getrector.org/)** | Automated code refactoring |
 | **[PHP CodeSniffer](https://github.com/squizlabs/PHP_CodeSniffer)** | Coding standard enforcement |
 | **[Security Advisories](https://github.com/Roave/SecurityAdvisories)** | Dependency vulnerability checking |
+| **Interactive Installer** | Automatic project configuration |
 
 ---
 
@@ -31,26 +32,96 @@ Start your next PHP package with confidence. This skeleton comes pre-configured 
 composer create-project pekral/php-skeleton my-package
 ```
 
-Or clone and customize:
-
-```bash
-git clone https://github.com/pekral/php-skeleton.git my-package
-cd my-package
-rm -rf .git
-git init
-composer install
-```
+The interactive installer will guide you through the configuration process.
 
 ---
 
-## 🛠️ Quick Start
+## 🚀 Interactive Installer
 
-After installation, customize the skeleton for your package:
+When you run `composer create-project`, an interactive installer automatically starts and helps you configure your new package.
 
-1. **Update `composer.json`** — Change package name, description, and namespaces
-2. **Rename namespaces** — Update `Pekral\Example` to your vendor/package namespace
-3. **Clear example files** — Remove `src/Example.php` and `tests/Unit/Example.php`
-4. **Start building** — Create your classes in `src/` and tests in `tests/`
+### What the Installer Does
+
+1. **Collects Project Information**
+   - Package name (vendor/package format)
+   - Root PSR-4 namespace
+   - Test namespace
+   - Display name
+   - GitHub repository URL
+
+2. **Optional: Project Specification**
+   - Paste multi-line project specification text
+   - Creates `SPEC.md` file (automatically added to `.gitignore`)
+
+3. **Performs Automatic Configuration**
+   - Updates `composer.json` with your package details
+   - Replaces namespaces across all files
+   - Updates `README.md` and `LICENSE`
+   - Cleans up `phpstan.neon` and `rector.php`
+   - Moves dev dependencies to `require-dev`
+   - Creates example class and test
+
+4. **Creates Example Files**
+   - `src/{ClassName}.php` — Example class with `greet()` method
+   - `tests/Unit/{ClassName}Test.php` — Pest test for the example class
+
+5. **Optional Features**
+   - **GitHub Actions** — Keep or remove CI/CD workflows
+   - **Cursor Rules** — Install AI coding assistant rules
+   - **Git Repository** — Initialize with custom branch name
+   - **Push to Remote** — Force push initial commit to GitHub
+
+### Installer Flow Example
+
+```
+ ⚡   PHP Skeleton
+ Project Configuration
+
+📝  Package Configuration
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+   Package name (vendor/package): acme/my-package
+   Root namespace [Acme\MyPackage]: 
+   Test namespace [Acme\MyPackageTest]: 
+   Display name [My Package]: 
+   GitHub URL [https://github.com/acme/my-package]: 
+
+📋 Review Configuration
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+   GitHub          https://github.com/acme/my-package
+   Name            My Package
+   Namespace       Acme\MyPackage
+   Package         acme/my-package
+   Tests           Acme\MyPackageTest
+
+   Proceed? [yes]: 
+
+⚡  Processing Files
+   ✓ Updated: composer.json
+   ✓ Updated: README.md
+   ✓ Created src/MyPackage.php
+   ✓ Created tests/Unit/MyPackageTest.php
+
+🚀  GitHub Actions
+   Install GitHub Actions? [yes]: 
+
+📋  Cursor Rules
+   Install cursor rules? [yes]: 
+
+📦  Git Repository
+   Initialize git repository? [yes]: 
+   Branch name [main]: 
+   ✓ Git repository initialized
+   ✓ Initial commit created
+
+ ✓   Project configured successfully!
+```
+
+### Cancellation & Cleanup
+
+If you press `Ctrl+C` during installation, the installer will:
+- Display a cancellation message
+- Automatically delete the partially created project directory
+- Exit cleanly
 
 ---
 
@@ -71,6 +142,14 @@ This runs the complete quality pipeline:
 - Security audit
 - Tests with 100% coverage
 
+### Apply All Fixes
+
+```bash
+composer fix
+```
+
+Automatically fixes code style and applies refactoring.
+
 ### Individual Commands
 
 | Command | Description |
@@ -83,24 +162,37 @@ This runs the complete quality pipeline:
 | `composer rector-fix` | Apply automated refactoring |
 | `composer phpcs-check` | Check coding standards |
 | `composer phpcs-fix` | Fix coding standard violations |
-| `composer fix` | Run all auto-fixers |
+| `composer composer-normalize-check` | Check composer.json normalization |
+| `composer composer-normalize-fix` | Normalize composer.json |
 | `composer security-audit` | Check for vulnerable dependencies |
 
 ---
 
 ## 📁 Project Structure
 
+After installation, your project will have:
+
 ```
-├── src/                    # Your package source code
+my-package/
+├── .github/
+│   └── workflows/
+│       └── pr.yml              # GitHub Actions CI workflow
+├── docs/                       # Documentation folder
+├── src/
+│   └── MyPackage.php           # Example class (your namespace)
 ├── tests/
-│   └── Unit/               # Unit tests
-├── composer.json           # Dependencies and scripts
-├── phpstan.neon            # PHPStan configuration (level max)
-├── phpunit.xml             # PHPUnit/Pest configuration
-├── pint.json               # Laravel Pint rules
-├── rector.php              # Rector configuration
-├── ruleset.xml             # PHP CodeSniffer rules
-└── LICENSE                 # MIT License
+│   └── Unit/
+│       └── MyPackageTest.php   # Example Pest test
+├── .gitignore                  # Git ignore rules
+├── composer.json               # Dependencies and scripts
+├── phpstan.neon                # PHPStan configuration (level max)
+├── phpunit.xml                 # PHPUnit/Pest configuration
+├── pint.json                   # Laravel Pint rules
+├── rector.php                  # Rector configuration
+├── ruleset.xml                 # PHP CodeSniffer rules
+├── CHANGELOG.md                # Version history (empty)
+├── README.md                   # Project readme (empty)
+└── LICENSE                     # MIT License
 ```
 
 ---
@@ -166,4 +258,3 @@ This package is open-sourced software licensed under the [MIT license](LICENSE).
 <p align="center">
   <sub>Built with ❤️ for the PHP community</sub>
 </p>
-

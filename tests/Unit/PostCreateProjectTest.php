@@ -3,6 +3,7 @@
 declare(strict_types = 1);
 
 use Pekral\BuildPackage\PostCreateProject;
+use Symfony\Component\Console\Output\NullOutput;
 
 describe(PostCreateProject::class, function (): void {
     describe('toStudlyCase', function (): void {
@@ -140,10 +141,10 @@ describe(PostCreateProject::class, function (): void {
         ]);
     });
 
-    describe('configure', function (): void {
+    describe('configurePackage', function (): void {
         it('sets configuration values correctly', function (): void {
             $project = new PostCreateProject();
-            $project->configure(
+            $project->configurePackage(
                 'acme/awesome-lib',
                 'Acme\\AwesomeLib',
                 'Acme\\Test',
@@ -168,7 +169,7 @@ describe(PostCreateProject::class, function (): void {
         it('throws exception for invalid package name', function (): void {
             $project = new PostCreateProject();
 
-            expect(fn () => $project->configure(
+            expect(fn () => $project->configurePackage(
                 'invalid-package-name',
                 'Invalid\\Package',
                 'Invalid\\Test',
@@ -181,7 +182,7 @@ describe(PostCreateProject::class, function (): void {
     describe('buildReplacements', function (): void {
         it('includes escaped namespaces for JSON files', function (): void {
             $project = new PostCreateProject();
-            $project->configure(
+            $project->configurePackage(
                 'acme/lib',
                 'Acme\\Lib',
                 'Acme\\Test',
@@ -199,7 +200,7 @@ describe(PostCreateProject::class, function (): void {
 
         it('replaces author information with placeholders', function (): void {
             $project = new PostCreateProject();
-            $project->configure(
+            $project->configurePackage(
                 'vendor/package',
                 'Vendor\\Package',
                 'Vendor\\Test',
@@ -219,7 +220,7 @@ describe(PostCreateProject::class, function (): void {
     describe('processFileContent', function (): void {
         it('replaces all occurrences in content', function (): void {
             $project = new PostCreateProject();
-            $project->configure(
+            $project->configurePackage(
                 'acme/awesome-lib',
                 'Acme\\AwesomeLib',
                 'Acme\\Test',
@@ -249,7 +250,7 @@ describe(PostCreateProject::class, function (): void {
 
         it('handles JSON escaped namespaces', function (): void {
             $project = new PostCreateProject();
-            $project->configure(
+            $project->configurePackage(
                 'acme/lib',
                 'Acme\\Lib',
                 'Acme\\Test',
@@ -285,6 +286,7 @@ describe(PostCreateProject::class, function (): void {
 
             expect($project->getExampleFilesToDelete())->toBe([
                 'src/Example.php',
+                'tests/Unit/ConsoleThemeTest.php',
                 'tests/Unit/ExampleTest.php',
                 'tests/Unit/PostCreateProjectTest.php',
             ]);
@@ -308,7 +310,7 @@ describe(PostCreateProject::class, function (): void {
         it('returns project path', function (): void {
             $project = new PostCreateProject('/custom/path');
 
-            expect($project->getProjectPath())->toBe('/custom/path');
+            expect($project->projectPath)->toBe('/custom/path');
         });
     });
 
@@ -323,6 +325,12 @@ describe(PostCreateProject::class, function (): void {
 
             file_put_contents($tempDir . '/composer.json', json_encode([
                 'name' => 'pekral/php-skeleton',
+                'require' => [
+                    'php' => '^8.4',
+                    'pestphp/pest' => '^4.0',
+                    'phpstan/phpstan' => '^2.0',
+                ],
+                'require-dev' => [],
                 'autoload' => [
                     'psr-4' => [
                         'Pekral\\Example\\' => 'src/',
@@ -372,43 +380,87 @@ describe(PostCreateProject::class, function (): void {
                 final class PostCreateProject {}
                 PHP);
 
-            $outputStream = fopen('php://memory', 'rw');
-            $project = new PostCreateProject($tempDir, null, $outputStream !== false ? $outputStream : null);
-            $project->configure(
+            file_put_contents($tempDir . '/phpstan.neon', <<<'NEON'
+                parameters:
+                    level: max
+                    paths:
+                        - src
+                        - tests
+                        - build-package
+                NEON);
+
+            file_put_contents($tempDir . '/rector.php', <<<'PHP'
+                <?php
+
+                declare(strict_types=1);
+
+                use Rector\CodingStyle\Rector\String_\SimplifyQuoteEscapeRector;
+                use Rector\Config\RectorConfig;
+
+                return static function (RectorConfig $rectorConfig): void {
+                    $rectorConfig->paths([
+                        __DIR__ . '/src',
+                        __DIR__ . '/tests',
+                        __DIR__ . '/build-package',
+                    ]);
+
+                    $rectorConfig->skip([
+                        __DIR__ . '/vendor',
+                        SimplifyQuoteEscapeRector::class => [
+                            __DIR__ . '/build-package',
+                        ],
+                    ]);
+                };
+                PHP);
+
+            $project = new PostCreateProject($tempDir);
+            $project->configurePackage(
                 'acme/awesome-lib',
                 'Acme\\AwesomeLib',
                 'Acme\\Test',
                 'Awesome Lib',
                 'https://github.com/acme/awesome-lib',
             );
-            $project->runWithoutInteraction();
+            $project->runWithoutInteraction(new NullOutput());
 
             $composerContent = file_get_contents($tempDir . '/composer.json');
 
             /** @var array{
              * name: string,
+             * require: array<string, string>,
+             * require-dev: array<string, string>,
              * autoload: array<string, mixed>,
              * autoload-dev: array{psr-4: array<string, string>},
              * scripts: array<string, mixed>
              * } $composerData */
-            $composerData = json_decode($composerContent !== false ? $composerContent : '', true);
+            $composerData = json_decode($composerContent !== false ? $composerContent : '', true, 512, JSON_THROW_ON_ERROR);
+
+            $phpstanContent = file_get_contents($tempDir . '/phpstan.neon');
+
+            $rectorContent = file_get_contents($tempDir . '/rector.php');
 
             expect($composerContent)->toContain('acme/awesome-lib')
                 ->and($composerContent)->toContain('Acme\\\\AwesomeLib\\\\')
                 ->and(file_exists($tempDir . '/src/Example.php'))->toBeFalse()
                 ->and(file_exists($tempDir . '/tests/Unit/ExampleTest.php'))->toBeFalse()
                 ->and(file_exists($tempDir . '/tests/Unit/PostCreateProjectTest.php'))->toBeFalse()
-                ->and(file_exists($tempDir . '/src/.gitkeep'))->toBeTrue()
-                ->and(file_exists($tempDir . '/tests/Unit/.gitkeep'))->toBeTrue()
+                ->and(file_exists($tempDir . '/src/AwesomeLib.php'))->toBeTrue()
+                ->and(file_exists($tempDir . '/tests/Unit/AwesomeLibTest.php'))->toBeTrue()
+                ->and(file_exists($tempDir . '/src/.gitkeep'))->toBeFalse()
+                ->and(file_exists($tempDir . '/tests/Unit/.gitkeep'))->toBeFalse()
                 ->and(is_dir($tempDir . '/build-package'))->toBeFalse()
                 ->and($composerData['scripts'])->not->toHaveKey('post-create-project-cmd')
                 ->and($composerData['scripts'])->toHaveKey('test')
                 ->and($composerData['autoload-dev']['psr-4'])->not->toHaveKey('Acme\\BuildPackage\\')
-                ->and($composerData['autoload-dev']['psr-4'])->toHaveKey('Acme\\Test\\');
-
-            if ($outputStream !== false) {
-                fclose($outputStream);
-            }
+                ->and($composerData['autoload-dev']['psr-4'])->toHaveKey('Acme\\Test\\')
+                ->and($phpstanContent)->not->toContain('build-package')
+                ->and($rectorContent)->not->toContain('build-package')
+                ->and($rectorContent)->not->toContain('SimplifyQuoteEscapeRector')
+                ->and($composerData['require'])->toHaveKey('php')
+                ->and($composerData['require'])->not->toHaveKey('pestphp/pest')
+                ->and($composerData['require'])->not->toHaveKey('phpstan/phpstan')
+                ->and($composerData['require-dev'])->toHaveKey('pestphp/pest')
+                ->and($composerData['require-dev'])->toHaveKey('phpstan/phpstan');
 
             array_map('unlink', glob($tempDir . '/src/*') ?: []);
             array_map('unlink', glob($tempDir . '/src/.*') ?: []);
@@ -418,6 +470,8 @@ describe(PostCreateProject::class, function (): void {
             rmdir($tempDir . '/tests');
             rmdir($tempDir . '/src');
             unlink($tempDir . '/composer.json');
+            unlink($tempDir . '/phpstan.neon');
+            unlink($tempDir . '/rector.php');
             rmdir($tempDir);
         });
     });

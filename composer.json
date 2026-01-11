@@ -37,11 +37,10 @@
     }
   ],
   "require": {
-    "php": "^8.4"
-  },
-  "require-dev": {
+    "php": "^8.4",
     "ergebnis/composer-normalize": "^2.48.2",
     "laravel/pint": "^1.27.0",
+    "nunomaduro/termwind": "^2.3",
     "pekral/cursor-rules": "dev-master",
     "pekral/phpcs-rules": "dev-master",
     "pekral/rector-rules": "dev-master",
@@ -53,7 +52,8 @@
     "phpstan/phpstan-mockery": "^2.0",
     "phpstan/phpstan-phpunit": "^2.0.11",
     "roave/security-advisories": "dev-latest",
-    "squizlabs/php_codesniffer": ">=4.0.1"
+    "squizlabs/php_codesniffer": ">=4.0.1",
+    "symfony/console": "^7.4.3"
   },
   "minimum-stability": "dev",
   "prefer-stable": true,
@@ -88,7 +88,7 @@
     ],
     "check": [
       "echo \"🚀 Running full quality check...\"",
-      "@normalize-check",
+      "@composer-normalize-check",
       "@phpcs-check",
       "@pint-check",
       "@rector-check",
@@ -96,41 +96,41 @@
       "@security-audit",
       "@test:coverage"
     ],
+    "composer-normalize-check": [
+      "echo \"📝 Checking Composer normalize...\"",
+      "composer normalize --dry-run"
+    ],
+    "composer-normalize-fix": [
+      "echo \"📝 Running Composer normalize fix...\"",
+      "composer normalize || true"
+    ],
     "coverage": [
       "echo \"📊 Running code coverage analysis...\"",
       "@test:coverage"
     ],
     "fix": [
       "echo \"🔧 Running all fixes...\"",
-      "@normalize-fix",
+      "@composer-normalize-fix",
       "@rector-fix",
       "@pint-fix",
       "@phpcs-fix",
       "echo \"✅ All fixes completed!\""
     ],
-    "normalize-check": [
-      "echo \"📝 Checking Composer normalize...\"",
-      "composer normalize --dry-run"
-    ],
-    "normalize-fix": [
-      "echo \"📝 Running Composer normalize fix...\"",
-      "composer normalize || true"
-    ],
     "phpcs-check": [
       "echo \"✅ Running PHP CodeSniffer check...\"",
-      "vendor/bin/phpcs --standard=ruleset.xml src/ tests/"
+      "vendor/bin/phpcs --standard=ruleset.xml src/ tests/ build-package/"
     ],
     "phpcs-fix": [
       "echo \"🔧 Running PHP CodeSniffer fix...\"",
-      "vendor/bin/phpcbf --standard=ruleset.xml src/ tests/ || true"
+      "vendor/bin/phpcbf --standard=ruleset.xml src/ tests/ build-package/ || true"
     ],
     "pint-check": [
       "echo \"🎨 Running Laravel Pint check...\"",
-      "vendor/bin/pint src/ tests/ --test"
+      "vendor/bin/pint src/ tests/ build-package/ --test"
     ],
     "pint-fix": [
       "echo \"🎨 Running Laravel Pint fixes...\"",
-      "vendor/bin/pint src/ tests/"
+      "vendor/bin/pint src/ tests/ build-package/"
     ],
     "rector-check": [
       "echo \"🔄 Running Rector check (dry-run)...\"",

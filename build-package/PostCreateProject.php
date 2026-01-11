@@ -1,17 +1,28 @@
 <?php
 
-declare(strict_types=1);
+declare(strict_types = 1);
 
 namespace Pekral\BuildPackage;
 
 use FilesystemIterator;
+use InvalidArgumentException;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\QuestionHelper;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\StreamableInputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\ConfirmationQuestion;
+use Symfony\Component\Console\Question\Question;
+use Symfony\Component\Console\Style\SymfonyStyle;
 
-final class PostCreateProject
+final class PostCreateProject extends Command
 {
-    private const EXCLUDED_DIRECTORIES = [
+
+    private const array EXCLUDED_DIRECTORIES = [
         'vendor',
         '.git',
         'node_modules',
@@ -20,7 +31,7 @@ final class PostCreateProject
         'build-package',
     ];
 
-    private const BINARY_EXTENSIONS = [
+    private const array BINARY_EXTENSIONS = [
         'png', 'jpg', 'jpeg', 'gif', 'ico', 'webp', 'svg',
         'woff', 'woff2', 'ttf', 'eot', 'otf',
         'zip', 'tar', 'gz', 'rar',
@@ -29,7 +40,7 @@ final class PostCreateProject
         'phar',
     ];
 
-    private const FILES_TO_PROCESS = [
+    private const array FILES_TO_PROCESS = [
         'composer.json',
         'README.md',
         'CHANGELOG.md',
@@ -42,94 +53,68 @@ final class PostCreateProject
         'LICENSE',
     ];
 
-    private const DIRECTORIES_TO_PROCESS = [
+    private const array DIRECTORIES_TO_PROCESS = [
         'src',
         'tests',
     ];
 
-    private const EXAMPLE_FILES_TO_DELETE = [
+    private const array EXAMPLE_FILES_TO_DELETE = [
         'src/Example.php',
+        'tests/Unit/ConsoleThemeTest.php',
         'tests/Unit/ExampleTest.php',
         'tests/Unit/PostCreateProjectTest.php',
     ];
 
-    private const BUILD_PACKAGE_DIRECTORY = 'build-package';
+    private const string BUILD_PACKAGE_DIRECTORY = 'build-package';
 
-    private string $projectPath;
+    public string $projectPath {
+        get => $this->projectPath;
+        set(string $path) {
+            $this->projectPath = $path;
+        }
+    }
+
     private string $oldPackageName = 'pekral/php-skeleton';
+
     private string $oldNamespace = 'Pekral\\Example';
+
     private string $oldTestNamespace = 'Pekral\\Test';
+
     private string $oldDisplayName = 'PHP Skeleton';
+
     private string $oldGithubUrl = 'https://github.com/pekral/php-skeleton';
 
     private string $newPackageName = '';
+
     private string $newNamespace = '';
+
     private string $newTestNamespace = '';
+
     private string $newDisplayName = '';
+
     private string $newGithubUrl = '';
+
+    private string $specContent = '';
+
     private string $newVendor = '';
+
     private string $newPackage = '';
 
-    /**
-     * @var resource|null
-     */
-    private $inputStream;
+    private SymfonyStyle $symfonyStyle;
 
-    /**
-     * @var resource|null
-     */
-    private $outputStream;
-
-    /**
-     * @param resource|null $inputStream
-     * @param resource|null $outputStream
-     */
-    public function __construct(
-        ?string $projectPath = null,
-        $inputStream = null,
-        $outputStream = null,
-    ) {
-        $this->projectPath = $projectPath ?? (getcwd() ?: dirname(__DIR__));
-        $this->inputStream = $inputStream;
-        $this->outputStream = $outputStream;
-    }
-
-    public function run(): void
+    public function __construct(?string $projectPath = null)
     {
-        $this->printBanner();
+        parent::__construct('configure');
 
-        if (!$this->isInteractive()) {
-            $this->writeLine('⚠️  Non-interactive mode detected. Skipping configuration.');
-            $this->writeLine('   Run this script manually to configure your package:');
-            $this->writeLine('   php post-create-project.php');
-
-            return;
-        }
-
-        $this->gatherInput();
-        $this->confirmChanges();
-        $this->performReplacements();
-        $this->deleteExampleFiles();
-        $this->removeGitDirectory();
-        $this->initializeGitRepository();
-        $this->cleanupComposerJson();
-        $this->deleteBuildPackageDirectory();
-        $this->runComposerDumpAutoload();
-        $this->deleteSelf();
-
-        $this->printSuccess();
+        $this->projectPath = $projectPath ?? (getcwd() ?: dirname(__DIR__));
     }
 
-    public function configure(
-        string $packageName,
-        string $namespace,
-        string $testNamespace,
-        string $displayName,
-        string $githubUrl,
-    ): void {
+    public function configurePackage(string $packageName, string $namespace, string $testNamespace, string $displayName, string $githubUrl): void
+    {
         $parts = explode('/', $packageName);
+
         if (count($parts) !== 2) {
-            throw new \InvalidArgumentException('Invalid package name format. Expected: vendor/package');
+            throw new InvalidArgumentException('Invalid package name format. Expected: vendor/package');
         }
 
         $this->newPackageName = $packageName;
@@ -141,13 +126,23 @@ final class PostCreateProject
         $this->newGithubUrl = $githubUrl;
     }
 
-    public function runWithoutInteraction(): void
+    public function runWithoutInteraction(OutputInterface $output): void
     {
+        $this->setupStyles($output);
+        $this->symfonyStyle = new SymfonyStyle(new ArrayInput([]), $output);
         $this->performReplacements();
+        $this->clearDocumentationFiles();
+        $this->createSpecFile();
         $this->deleteExampleFiles();
         $this->removeGitDirectory();
         $this->cleanupComposerJson();
+        $this->cleanupPhpstanNeon();
+        $this->cleanupRectorPhp();
+        $this->moveRequireToRequireDev();
+        $this->updateDevDependenciesToStable();
         $this->deleteBuildPackageDirectory();
+        $this->createExampleFile();
+        $this->createExampleTest();
     }
 
     public function toStudlyCase(string $value): string
@@ -175,7 +170,7 @@ final class PostCreateProject
     public function isExcludedPath(string $filePath): bool
     {
         foreach (self::EXCLUDED_DIRECTORIES as $excluded) {
-            if (str_contains($filePath, "/{$excluded}/")) {
+            if (str_contains($filePath, sprintf('/%s/', $excluded))) {
                 return true;
             }
         }
@@ -188,20 +183,24 @@ final class PostCreateProject
      */
     public function buildReplacements(): array
     {
-        return [
-            $this->oldPackageName => $this->newPackageName,
-            str_replace('\\', '\\\\', $this->oldNamespace) => str_replace('\\', '\\\\', $this->newNamespace),
-            str_replace('\\', '\\\\', $this->oldTestNamespace) => str_replace('\\', '\\\\', $this->newTestNamespace),
-            $this->oldNamespace => $this->newNamespace,
-            $this->oldTestNamespace => $this->newTestNamespace,
-            $this->oldGithubUrl => $this->newGithubUrl,
+        $replacements = [
             $this->oldDisplayName => $this->newDisplayName,
+            $this->oldGithubUrl => $this->newGithubUrl,
+            $this->oldNamespace => $this->newNamespace,
+            $this->oldPackageName => $this->newPackageName,
+            $this->oldTestNamespace => $this->newTestNamespace,
+            '@pekral' => '@' . $this->newVendor,
+            'kral.petr.88@gmail.com' => 'your.email@example.com',
             'pekral' => $this->newVendor,
             'Pekral' => $this->toStudlyCase($this->newVendor),
             'Petr Král' => 'Your Name',
-            'kral.petr.88@gmail.com' => 'your.email@example.com',
-            '@pekral' => '@' . $this->newVendor,
+            str_replace('\\', '\\\\', $this->oldNamespace) => str_replace('\\', '\\\\', $this->newNamespace),
+            str_replace('\\', '\\\\', $this->oldTestNamespace) => str_replace('\\', '\\\\', $this->newTestNamespace),
         ];
+
+        uksort($replacements, static fn (string $a, string $b): int => strlen($b) <=> strlen($a));
+
+        return $replacements;
     }
 
     /**
@@ -256,44 +255,126 @@ final class PostCreateProject
         return self::EXCLUDED_DIRECTORIES;
     }
 
-    public function getProjectPath(): string
+    protected function configure(): void
     {
-        return $this->projectPath;
+        $this->setDescription('Configure your new PHP package from the skeleton template');
+    }
+
+    protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        $this->setupStyles($output);
+        $this->symfonyStyle = new SymfonyStyle($input, $output);
+        $this->registerSignalHandler();
+
+        $this->printBanner();
+
+        if (!$input->isInteractive()) {
+            $this->symfonyStyle->warning('Non-interactive mode detected. Skipping configuration.');
+            $this->symfonyStyle->text('Run this script manually to configure your package:');
+            $this->symfonyStyle->text('  <accent>php post-create-project.php</accent>');
+
+            return Command::SUCCESS;
+        }
+
+        $this->gatherInput($input);
+
+        if (!$this->confirmChanges($input)) {
+            $this->cleanupProjectDirectory('Configuration cancelled.');
+
+            return Command::SUCCESS;
+        }
+
+        $this->performReplacements();
+        $this->clearDocumentationFiles();
+        $this->createSpecFile();
+        $this->deleteExampleFiles();
+        $this->removeGitDirectory();
+        $this->cleanupComposerJson();
+        $this->cleanupPhpstanNeon();
+        $this->cleanupRectorPhp();
+        $this->moveRequireToRequireDev();
+        $this->updateDevDependenciesToStable();
+        $this->deleteBuildPackageDirectory();
+        $this->createExampleFile();
+        $this->createExampleTest();
+        $this->deleteSelf();
+        $this->runComposerInstall();
+        $this->installGitHubActions($input);
+        $this->installCursorRules($input);
+        $this->runComposerFix();
+
+        $checkPassed = $this->runComposerCheck();
+        $this->initializeGitRepository($input, $checkPassed);
+
+        if ($checkPassed) {
+            $this->printSuccess();
+
+            return Command::SUCCESS;
+        }
+
+        $this->printFailure();
+
+        return Command::FAILURE;
+    }
+
+    private function setupStyles(OutputInterface $output): void
+    {
+        ConsoleTheme::apply($output);
+    }
+
+    private function registerSignalHandler(): void
+    {
+        if (!function_exists('pcntl_signal')) {
+            return;
+        }
+
+        pcntl_signal(SIGINT, function (): never {
+            $this->cleanupProjectDirectory("\nInstallation cancelled by user (CTRL+C).");
+            exit(0);
+        });
+
+        pcntl_signal(SIGTERM, function (): never {
+            $this->cleanupProjectDirectory("\nInstallation terminated.");
+            exit(0);
+        });
+
+        pcntl_async_signals(true);
+    }
+
+    private function cleanupProjectDirectory(string $message): void
+    {
+        ConsoleTheme::newLine();
+        ConsoleTheme::warning($message);
+
+        if (!is_dir($this->projectPath)) {
+            return;
+        }
+
+        ConsoleTheme::warning('Cleaning up project directory...');
+        $this->deleteDirectory($this->projectPath);
+        ConsoleTheme::success('Project directory removed.');
     }
 
     private function printBanner(): void
     {
-        $this->writeLine('');
-        $this->writeLine('╔══════════════════════════════════════════════════════════════╗');
-        $this->writeLine('║                                                              ║');
-        $this->writeLine('║   🚀 PHP Skeleton - Project Configuration                    ║');
-        $this->writeLine('║                                                              ║');
-        $this->writeLine('╚══════════════════════════════════════════════════════════════╝');
-        $this->writeLine('');
+        ConsoleTheme::banner('PHP Skeleton', 'Project Configuration');
     }
 
-    private function isInteractive(): bool
+    private function gatherInput(InputInterface $input): void
     {
-        if ($this->inputStream !== null) {
-            return true;
-        }
+        ConsoleTheme::newLine();
+        ConsoleTheme::section('📝', 'Package Configuration');
+        ConsoleTheme::thinDivider();
 
-        return defined('STDIN') && posix_isatty(STDIN);
-    }
+        $helper = $this->getQuestionHelper();
 
-    private function gatherInput(): void
-    {
-        $this->writeLine('Please provide the following information for your new package:');
-        $this->writeLine('');
-
-        $this->newPackageName = $this->ask(
-            'Package name (vendor/package)',
-            'my-vendor/my-package'
-        );
+        $question = new Question('   <accent>Package name</accent> <muted>(vendor/package)</muted>: ', 'my-vendor/my-package');
+        $this->newPackageName = $this->askQuestion($helper, $input, $question);
 
         $parts = explode('/', $this->newPackageName);
+
         if (count($parts) !== 2) {
-            $this->writeLine('❌ Invalid package name format. Expected: vendor/package');
+            $this->symfonyStyle->error('Invalid package name format. Expected: vendor/package');
             exit(1);
         }
 
@@ -301,62 +382,116 @@ final class PostCreateProject
         $this->newPackage = $parts[1];
 
         $defaultNamespace = $this->toStudlyCase($this->newVendor) . '\\' . $this->toStudlyCase($this->newPackage);
-        $this->newNamespace = $this->ask(
-            'Root PSR-4 namespace',
-            $defaultNamespace
+        $question = new Question(
+            sprintf('   <accent>Root namespace</accent> [<muted>%s</muted>]: ', $defaultNamespace),
+            $defaultNamespace,
         );
+        $this->newNamespace = $this->askQuestion($helper, $input, $question);
 
-        $namespaceParts = explode('\\', $this->newNamespace);
-        $defaultTestNamespace = $namespaceParts[0] . '\\Test';
-        $this->newTestNamespace = $this->ask(
-            'Test namespace',
-            $defaultTestNamespace
+        $defaultTestNamespace = $this->newNamespace . 'Test';
+        $question = new Question(
+            sprintf('   <accent>Test namespace</accent> [<muted>%s</muted>]: ', $defaultTestNamespace),
+            $defaultTestNamespace,
         );
+        $this->newTestNamespace = $this->askQuestion($helper, $input, $question);
 
         $defaultDisplayName = $this->toDisplayName($this->newPackage);
-        $this->newDisplayName = $this->ask(
-            'Project display name',
-            $defaultDisplayName
+        $question = new Question(
+            sprintf('   <accent>Display name</accent> [<muted>%s</muted>]: ', $defaultDisplayName),
+            $defaultDisplayName,
         );
+        $this->newDisplayName = $this->askQuestion($helper, $input, $question);
 
-        $defaultGithubUrl = "https://github.com/{$this->newPackageName}";
-        $this->newGithubUrl = $this->ask(
-            'GitHub repository URL',
-            $defaultGithubUrl
+        $defaultGithubUrl = 'https://github.com/' . $this->newPackageName;
+        $question = new Question(
+            sprintf('   <accent>GitHub URL</accent> [<muted>%s</muted>]: ', $defaultGithubUrl),
+            $defaultGithubUrl,
         );
+        $this->newGithubUrl = $this->askQuestion($helper, $input, $question);
+
+        ConsoleTheme::newLine();
+        ConsoleTheme::info('Project spec', 'paste text, end with empty line (or skip with Enter)');
+
+        $this->specContent = $this->readMultilineInput($input);
+
+        if ($this->specContent !== '') {
+            ConsoleTheme::success(sprintf('Spec received (%d chars)', strlen($this->specContent)));
+        }
     }
 
-    private function confirmChanges(): void
+    private function readMultilineInput(InputInterface $input): string
     {
-        $this->writeLine('');
-        $this->writeLine('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        $this->writeLine('Configuration Summary:');
-        $this->writeLine('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        $this->writeLine("  Package name:    {$this->newPackageName}");
-        $this->writeLine("  Namespace:       {$this->newNamespace}");
-        $this->writeLine("  Test namespace:  {$this->newTestNamespace}");
-        $this->writeLine("  Display name:    {$this->newDisplayName}");
-        $this->writeLine("  GitHub URL:      {$this->newGithubUrl}");
-        $this->writeLine('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        $this->writeLine('');
+        $stream = $input instanceof StreamableInputInterface ? $input->getStream() : null;
 
-        $confirm = $this->ask('Proceed with these settings?', 'yes');
-
-        if (!in_array(strtolower($confirm), ['yes', 'y', ''], true)) {
-            $this->writeLine('❌ Configuration cancelled.');
-            exit(0);
+        if ($stream === null || $stream === false) {
+            $stream = STDIN;
         }
+
+        $lines = [];
+        $consecutiveEmptyLines = 0;
+
+        while (true) {
+            $line = fgets($stream);
+
+            if ($line === false) {
+                break;
+            }
+
+            $trimmedLine = rtrim($line, "\r\n");
+
+            if ($trimmedLine === '') {
+                if ($lines === []) {
+                    break;
+                }
+
+                $consecutiveEmptyLines++;
+
+                if ($consecutiveEmptyLines >= 2) {
+                    break;
+                }
+
+                $lines[] = '';
+
+                continue;
+            }
+
+            $consecutiveEmptyLines = 0;
+            $lines[] = $trimmedLine;
+        }
+
+        while ($lines !== [] && end($lines) === '') {
+            array_pop($lines);
+        }
+
+        return implode("\n", $lines);
+    }
+
+    private function confirmChanges(InputInterface $input): bool
+    {
+        ConsoleTheme::summary('Review Configuration', [
+            'GitHub' => $this->newGithubUrl,
+            'Name' => $this->newDisplayName,
+            'Namespace' => $this->newNamespace,
+            'Package' => $this->newPackageName,
+            'Tests' => $this->newTestNamespace,
+        ]);
+
+        $helper = $this->getQuestionHelper();
+        $question = new ConfirmationQuestion('   <accent>Proceed?</accent> [<muted>yes</muted>]: ', true);
+
+        return (bool) $helper->ask($input, $this->symfonyStyle, $question);
     }
 
     private function performReplacements(): void
     {
-        $this->writeLine('');
-        $this->writeLine('🔄 Performing replacements...');
+        ConsoleTheme::newLine();
+        ConsoleTheme::section('⚡', 'Processing Files');
 
         $replacements = $this->buildReplacements();
 
         foreach (self::FILES_TO_PROCESS as $file) {
             $filePath = $this->projectPath . '/' . $file;
+
             if (file_exists($filePath)) {
                 $this->processFile($filePath, $replacements);
             }
@@ -364,12 +499,11 @@ final class PostCreateProject
 
         foreach (self::DIRECTORIES_TO_PROCESS as $directory) {
             $directoryPath = $this->projectPath . '/' . $directory;
+
             if (is_dir($directoryPath)) {
                 $this->processDirectory($directoryPath, $replacements);
             }
         }
-
-        $this->writeLine('   ✓ Replacements completed');
     }
 
     /**
@@ -382,6 +516,7 @@ final class PostCreateProject
         }
 
         $content = file_get_contents($filePath);
+
         if ($content === false) {
             return;
         }
@@ -389,11 +524,13 @@ final class PostCreateProject
         $originalContent = $content;
         $content = $this->processFileContent($content, $replacements);
 
-        if ($content !== $originalContent) {
-            file_put_contents($filePath, $content);
-            $relativePath = str_replace($this->projectPath . '/', '', $filePath);
-            $this->writeLine("   ✓ Updated: {$relativePath}");
+        if ($content === $originalContent) {
+            return;
         }
+
+        file_put_contents($filePath, $content);
+        $relativePath = str_replace($this->projectPath . '/', '', $filePath);
+        ConsoleTheme::success(sprintf('Updated: %s', $relativePath));
     }
 
     /**
@@ -403,7 +540,7 @@ final class PostCreateProject
     {
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::SELF_FIRST
+            RecursiveIteratorIterator::SELF_FIRST,
         );
 
         foreach ($iterator as $file) {
@@ -423,17 +560,50 @@ final class PostCreateProject
         }
     }
 
+    private function clearDocumentationFiles(): void
+    {
+        $files = [
+            'CHANGELOG.md',
+            'README.md',
+        ];
+
+        foreach ($files as $file) {
+            $filePath = $this->projectPath . '/' . $file;
+
+            if (!file_exists($filePath)) {
+                continue;
+            }
+
+            file_put_contents($filePath, '');
+            ConsoleTheme::success(sprintf('Cleared %s', $file));
+        }
+    }
+
+    private function createSpecFile(): void
+    {
+        if ($this->specContent === '') {
+            return;
+        }
+
+        $specPath = $this->projectPath . '/SPEC.md';
+        file_put_contents($specPath, $this->specContent);
+        ConsoleTheme::success('Created SPEC.md');
+    }
+
     private function deleteExampleFiles(): void
     {
-        $this->writeLine('');
-        $this->writeLine('🗑️  Deleting example files...');
+        ConsoleTheme::newLine();
+        ConsoleTheme::section('🗑', 'Cleanup');
 
         foreach (self::EXAMPLE_FILES_TO_DELETE as $file) {
             $filePath = $this->projectPath . '/' . $file;
-            if (file_exists($filePath)) {
-                unlink($filePath);
-                $this->writeLine("   ✓ Deleted: {$file}");
+
+            if (!file_exists($filePath)) {
+                continue;
             }
+
+            unlink($filePath);
+            ConsoleTheme::success(sprintf('Removed %s', $file));
         }
 
         $this->createGitkeepFiles();
@@ -442,18 +612,33 @@ final class PostCreateProject
     private function createGitkeepFiles(): void
     {
         $directories = [
+            'docs',
             'src',
+            'tests',
             'tests/Unit',
         ];
 
         foreach ($directories as $dir) {
             $dirPath = $this->projectPath . '/' . $dir;
+
+            if (is_dir($dirPath)) {
+                continue;
+            }
+
+            mkdir($dirPath, 0755, true);
+            ConsoleTheme::success(sprintf('Created: %s/', $dir));
+        }
+
+        foreach ($directories as $dir) {
+            $dirPath = $this->projectPath . '/' . $dir;
             $gitkeepPath = $dirPath . '/.gitkeep';
 
-            if (is_dir($dirPath) && $this->isDirectoryEmpty($dirPath)) {
-                file_put_contents($gitkeepPath, '');
-                $this->writeLine("   ✓ Created: {$dir}/.gitkeep");
+            if (!$this->isDirectoryEmpty($dirPath)) {
+                continue;
             }
+
+            file_put_contents($gitkeepPath, '');
+            ConsoleTheme::success(sprintf('Created: %s/.gitkeep', $dir));
         }
     }
 
@@ -466,83 +651,342 @@ final class PostCreateProject
 
     private function removeGitDirectory(): void
     {
-        $this->writeLine('');
-        $this->writeLine('🗑️  Removing .git directory...');
-
         $gitPath = $this->projectPath . '/.git';
-        if (is_dir($gitPath)) {
-            $this->deleteDirectory($gitPath);
-            $this->writeLine('   ✓ Removed .git directory');
-        } else {
-            $this->writeLine('   ⚠️  No .git directory found');
+
+        if (!is_dir($gitPath)) {
+            return;
         }
+
+        $this->deleteDirectory($gitPath);
+        ConsoleTheme::success('Removed .git directory');
     }
 
     private function cleanupComposerJson(): void
     {
-        $this->writeLine('');
-        $this->writeLine('🧹 Cleaning up composer.json...');
 
         $composerPath = $this->projectPath . '/composer.json';
+
         if (!file_exists($composerPath)) {
             return;
         }
 
         $content = file_get_contents($composerPath);
+
         if ($content === false) {
             return;
         }
 
         /** @var array<string, mixed>|null $composer */
-        $composer = json_decode($content, true);
+        $composer = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+
         if (!is_array($composer)) {
             return;
         }
 
         $modified = false;
 
-        if (
-            isset($composer['scripts'])
+        if (isset($composer['description'])) {
+            $composer['description'] = '';
+            $modified = true;
+        }
+
+        if (isset($composer['keywords'])) {
+            $composer['keywords'] = [];
+            $modified = true;
+        }
+
+        if (isset($composer['funding'])) {
+            $composer['funding'] = [];
+            $modified = true;
+        }
+
+        if (isset($composer['scripts'])
             && is_array($composer['scripts'])
             && array_key_exists('post-create-project-cmd', $composer['scripts'])
         ) {
             unset($composer['scripts']['post-create-project-cmd']);
             $modified = true;
-            $this->writeLine('   ✓ Removed post-create-project-cmd script');
         }
 
-        if (
-            isset($composer['autoload-dev'])
+        if (isset($composer['autoload-dev'])
             && is_array($composer['autoload-dev'])
             && isset($composer['autoload-dev']['psr-4'])
             && is_array($composer['autoload-dev']['psr-4'])
         ) {
             $buildPackageKey = $this->toStudlyCase($this->newVendor) . '\\BuildPackage\\';
+
             if (array_key_exists($buildPackageKey, $composer['autoload-dev']['psr-4'])) {
                 unset($composer['autoload-dev']['psr-4'][$buildPackageKey]);
                 $modified = true;
-                $this->writeLine('   ✓ Removed build-package autoload entry');
+            }
+        }
+
+        if (isset($composer['scripts']) && is_array($composer['scripts'])) {
+            $scriptsToMakeOptional = [
+                'analyse' => 'find src/ -name "*.php" 2>/dev/null | head -1 | grep -q . && vendor/bin/phpstan analyse --memory-limit=2G || echo "No PHP files to analyse"',
+                'phpcs-check' => 'find src/ tests/ -name "*.php" 2>/dev/null | head -1 | grep -q . && vendor/bin/phpcs --standard=ruleset.xml src/ tests/ || echo "No PHP files to check"',
+                'phpcs-fix' => 'find src/ tests/ -name "*.php" 2>/dev/null | head -1 | grep -q . && vendor/bin/phpcbf --standard=ruleset.xml src/ tests/ || true',
+                'pint-check' => 'find src/ tests/ -name "*.php" 2>/dev/null | head -1 | grep -q . && vendor/bin/pint src/ tests/ --test || echo "No PHP files to check"',
+                'pint-fix' => 'find src/ tests/ -name "*.php" 2>/dev/null | head -1 | grep -q . && vendor/bin/pint src/ tests/ || true',
+                'rector-check' => 'find src/ tests/ -name "*.php" 2>/dev/null | head -1 | grep -q . && vendor/bin/rector process --dry-run --no-progress-bar || echo "No PHP files to check"',
+                'rector-fix' => 'find src/ tests/ -name "*.php" 2>/dev/null | head -1 | grep -q . && vendor/bin/rector process --no-progress-bar || true',
+                'test:coverage' => 'find tests/ -name "*.php" 2>/dev/null | head -1 | grep -q . && php -dpcov.enabled=1 -dpcov.directory=. -dxdebug.mode=off vendor/bin/pest --coverage --min=100 || echo "No tests to run"',
+            ];
+
+            foreach ($scriptsToMakeOptional as $scriptName => $newCommand) {
+                if (array_key_exists($scriptName, $composer['scripts'])) {
+                    $composer['scripts'][$scriptName] = [
+                        sprintf('echo "Running %s..."', $scriptName),
+                        $newCommand,
+                    ];
+                    $modified = true;
+                }
             }
         }
 
         if ($modified) {
-            $json = json_encode($composer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-            if ($json !== false) {
-                file_put_contents($composerPath, $json . "\n");
+            ConsoleTheme::success('Updated composer.json');
+        }
+
+        if (!$modified) {
+            return;
+        }
+
+        $json = json_encode($composer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        if ($json !== false) {
+            file_put_contents($composerPath, $json . "\n");
+        }
+    }
+
+    private function cleanupPhpstanNeon(): void
+    {
+        $phpstanPath = $this->projectPath . '/phpstan.neon';
+
+        if (!file_exists($phpstanPath)) {
+            return;
+        }
+
+        $content = file_get_contents($phpstanPath);
+
+        if ($content === false) {
+            return;
+        }
+
+        $originalContent = $content;
+
+        $content = preg_replace('/^(\s*)-\s*build-package\s*$/m', '', $content);
+
+        if ($content === null || $content === $originalContent) {
+            return;
+        }
+
+        $content = preg_replace('/\n{3,}/', "\n\n", $content);
+        file_put_contents($phpstanPath, $content);
+        ConsoleTheme::success('Updated phpstan.neon');
+    }
+
+    private function cleanupRectorPhp(): void
+    {
+        $rectorPath = $this->projectPath . '/rector.php';
+
+        if (!file_exists($rectorPath)) {
+            return;
+        }
+
+        $content = file_get_contents($rectorPath);
+
+        if ($content === false) {
+            return;
+        }
+
+        $originalContent = $content;
+
+        $result = preg_replace("/[ \t]*__DIR__\s*\.\s*'\/build-package',?\s*\n?/m", '', $content);
+
+        if ($result === null) {
+            return;
+        }
+
+        $content = $result;
+
+        $result = preg_replace('/\s*SimplifyQuoteEscapeRector::class\s*=>\s*\[[^\]]*\],?/s', '', $content);
+
+        if ($result === null) {
+            return;
+        }
+
+        $content = $result;
+
+        $result = preg_replace('/use Rector\\\\CodingStyle\\\\Rector\\\\String_\\\\SimplifyQuoteEscapeRector;\s*\n?/', '', $content);
+
+        if ($result === null) {
+            return;
+        }
+
+        $content = $result;
+
+        if ($content === $originalContent) {
+            return;
+        }
+
+        file_put_contents($rectorPath, $content);
+        ConsoleTheme::success('Updated rector.php');
+    }
+
+    private function createExampleFile(): void
+    {
+        $srcPath = $this->projectPath . '/src';
+
+        if (!is_dir($srcPath)) {
+            mkdir($srcPath, 0755, true);
+        }
+
+        $className = $this->toStudlyCase($this->newPackage);
+        $filePath = $srcPath . '/' . $className . '.php';
+
+        $content = <<<PHP
+<?php
+
+declare(strict_types=1);
+
+namespace {$this->newNamespace};
+
+final class {$className}
+{
+    public function greet(string \$name): string
+    {
+        return sprintf('Hello, %s!', \$name);
+    }
+}
+
+PHP;
+
+        file_put_contents($filePath, $content);
+        ConsoleTheme::success(sprintf('Created src/%s.php', $className));
+
+        $gitkeepPath = $srcPath . '/.gitkeep';
+
+        if (file_exists($gitkeepPath)) {
+            unlink($gitkeepPath);
+        }
+    }
+
+    private function createExampleTest(): void
+    {
+        $testsPath = $this->projectPath . '/tests/Unit';
+
+        if (!is_dir($testsPath)) {
+            mkdir($testsPath, 0755, true);
+        }
+
+        $className = $this->toStudlyCase($this->newPackage);
+        $filePath = $testsPath . '/' . $className . 'Test.php';
+
+        $content = <<<PHP
+<?php
+
+declare(strict_types=1);
+
+use {$this->newNamespace}\\{$className};
+
+describe({$className}::class, function (): void {
+    it('greets with name', function (): void {
+        \$instance = new {$className}();
+
+        expect(\$instance->greet('World'))->toBe('Hello, World!');
+    });
+});
+
+PHP;
+
+        file_put_contents($filePath, $content);
+        ConsoleTheme::success(sprintf('Created tests/Unit/%sTest.php', $className));
+
+        $gitkeepPath = $testsPath . '/.gitkeep';
+
+        if (file_exists($gitkeepPath)) {
+            unlink($gitkeepPath);
+        }
+    }
+
+    private function moveRequireToRequireDev(): void
+    {
+
+        $composerPath = $this->projectPath . '/composer.json';
+
+        if (!file_exists($composerPath)) {
+            return;
+        }
+
+        $content = file_get_contents($composerPath);
+
+        if ($content === false) {
+            return;
+        }
+
+        /** @var array<string, mixed>|null $composer */
+        $composer = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+
+        if (!is_array($composer)) {
+            return;
+        }
+
+        if (!isset($composer['require']) || !is_array($composer['require'])) {
+            return;
+        }
+
+        /** @var array<string, string> $require */
+        $require = $composer['require'];
+
+        /** @var array<string, string> $requireDev */
+        $requireDev = isset($composer['require-dev']) && is_array($composer['require-dev'])
+            ? $composer['require-dev']
+            : [];
+
+        $newRequire = [];
+        $movedCount = 0;
+
+        foreach ($require as $package => $version) {
+            if ($package === 'php' || str_starts_with($package, 'ext-')) {
+                $newRequire[$package] = $version;
+            } else {
+                $requireDev[$package] = $version;
+                $movedCount++;
             }
         }
+
+        $composer['require'] = $newRequire;
+        $composer['require-dev'] = $requireDev;
+
+        $json = json_encode($composer, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        if ($json === false) {
+            return;
+        }
+
+        file_put_contents($composerPath, $json . "\n");
+
+        if ($movedCount > 0) {
+            ConsoleTheme::success(sprintf('Moved %d packages to require-dev', $movedCount));
+        }
+    }
+
+    private function updateDevDependenciesToStable(): void
+    {
+        // All pekral/* packages stay as dev-master
     }
 
     private function deleteBuildPackageDirectory(): void
     {
-        $this->writeLine('');
-        $this->writeLine('🗑️  Removing build-package directory...');
-
         $buildPackagePath = $this->projectPath . '/' . self::BUILD_PACKAGE_DIRECTORY;
-        if (is_dir($buildPackagePath)) {
-            $this->deleteDirectory($buildPackagePath);
-            $this->writeLine('   ✓ Removed build-package directory');
+
+        if (!is_dir($buildPackagePath)) {
+            return;
         }
+
+        $this->deleteDirectory($buildPackagePath);
+        ConsoleTheme::success('Removed build-package/');
     }
 
     private function deleteDirectory(string $directory): void
@@ -553,7 +997,7 @@ final class PostCreateProject
 
         $items = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::CHILD_FIRST
+            RecursiveIteratorIterator::CHILD_FIRST,
         );
 
         foreach ($items as $item) {
@@ -571,56 +1015,177 @@ final class PostCreateProject
         rmdir($directory);
     }
 
-    private function initializeGitRepository(): void
+    private function initializeGitRepository(InputInterface $input, bool $checkPassed): void
     {
-        $this->writeLine('');
-        $initGit = $this->ask('Initialize a new git repository?', 'yes');
+        ConsoleTheme::newLine();
+        ConsoleTheme::section('📦', 'Git Repository');
 
-        if (in_array(strtolower($initGit), ['yes', 'y', ''], true)) {
-            $this->writeLine('');
-            $this->writeLine('📦 Initializing new git repository...');
+        if (!$checkPassed) {
+            ConsoleTheme::warning('Skipped (quality checks failed)');
 
-            $currentDir = getcwd();
-            chdir($this->projectPath);
-
-            exec('git init 2>&1', $output, $returnCode);
-
-            if ($returnCode === 0) {
-                $this->writeLine('   ✓ Git repository initialized');
-
-                $createCommit = $this->ask('Create initial commit?', 'yes');
-                if (in_array(strtolower($createCommit), ['yes', 'y', ''], true)) {
-                    exec('git add -A 2>&1');
-                    exec('git commit -m "Initial commit" 2>&1', $commitOutput, $commitReturnCode);
-
-                    if ($commitReturnCode === 0) {
-                        $this->writeLine('   ✓ Initial commit created');
-                    }
-                }
-            } else {
-                $this->writeLine('   ⚠️  Failed to initialize git repository');
-            }
-
-            if ($currentDir !== false) {
-                chdir($currentDir);
-            }
+            return;
         }
-    }
 
-    private function runComposerDumpAutoload(): void
-    {
-        $this->writeLine('');
-        $this->writeLine('🔄 Running composer dump-autoload...');
+        $helper = $this->getQuestionHelper();
+        $question = new ConfirmationQuestion('   <accent>Initialize git?</accent> [<muted>yes</muted>]: ', true);
+
+        if (!(bool) $helper->ask($input, $this->symfonyStyle, $question)) {
+            return;
+        }
+
+        $branchQuestion = new Question('   <accent>Default branch</accent> [<muted>main</muted>]: ', 'main');
+        $defaultBranch = $this->askQuestion($helper, $input, $branchQuestion);
 
         $currentDir = getcwd();
         chdir($this->projectPath);
 
-        exec('composer dump-autoload 2>&1', $output, $returnCode);
+        exec('git init 2>&1', $output, $returnCode);
+
+        if ($returnCode !== 0) {
+            ConsoleTheme::warning('Failed to initialize');
+
+            if ($currentDir !== false) {
+                chdir($currentDir);
+            }
+
+            return;
+        }
+
+        $this->setupDefaultBranch($defaultBranch);
+        $this->updateGitignore();
+
+        $sshUrl = $this->convertToSshUrl($this->newGithubUrl);
+        exec(sprintf('git remote add origin %s 2>&1', escapeshellarg($sshUrl)), $remoteOutput, $remoteReturnCode);
+
+        exec('git rm -r --cached . 2>&1');
+        exec('git add -A 2>&1');
+        exec('git commit -m "chore: initialize project from php-skeleton template" 2>&1', $commitOutput, $commitReturnCode);
+
+        if ($commitReturnCode === 0) {
+            ConsoleTheme::success('Initialized with initial commit');
+        } else {
+            ConsoleTheme::warning('Failed to create initial commit');
+        }
+
+        $this->pushToRemote($input, $helper, $defaultBranch);
+
+        if ($currentDir !== false) {
+            chdir($currentDir);
+        }
+    }
+
+    private function updateGitignore(): void
+    {
+        $gitignorePath = $this->projectPath . '/.gitignore';
+
+        if (!file_exists($gitignorePath)) {
+            return;
+        }
+
+        $content = file_get_contents($gitignorePath);
+
+        if ($content === false) {
+            return;
+        }
+
+        $entriesToAdd = [
+            'SPEC.md',
+            '.idea/',
+            '.cursor/',
+        ];
+
+        $added = [];
+
+        foreach ($entriesToAdd as $entry) {
+            if (!str_contains($content, $entry)) {
+                $content = rtrim($content) . "\n" . $entry;
+                $added[] = $entry;
+            }
+        }
+
+        if ($added === []) {
+            return;
+        }
+
+        $content = rtrim($content) . "\n";
+        file_put_contents($gitignorePath, $content);
+        ConsoleTheme::success('Updated .gitignore');
+    }
+
+    private function convertToSshUrl(string $httpsUrl): string
+    {
+        if (preg_match('#^https://github\.com/([^/]+)/([^/]+?)(?:\.git)?$#', $httpsUrl, $matches)) {
+            return sprintf('git@github.com:%s/%s.git', $matches[1], $matches[2]);
+        }
+
+        return $httpsUrl;
+    }
+
+    private function setupDefaultBranch(string $branchName): void
+    {
+        exec('git symbolic-ref --short HEAD 2>&1', $currentBranchOutput, $currentBranchReturnCode);
+        $currentBranch = $currentBranchReturnCode === 0 && $currentBranchOutput !== [] ? trim($currentBranchOutput[0]) : '';
+
+        if ($currentBranch === $branchName) {
+            return;
+        }
+
+        exec(sprintf('git branch -M %s 2>&1', escapeshellarg($branchName)), $renameOutput, $renameReturnCode);
+
+        if ($renameReturnCode === 0) {
+            ConsoleTheme::success(sprintf('Set default branch to %s', $branchName));
+        } else {
+            ConsoleTheme::warning(sprintf('Failed to set branch to %s', $branchName));
+        }
+    }
+
+    private function pushToRemote(InputInterface $input, QuestionHelper $helper, string $branchName = 'main'): void
+    {
+        $question = new ConfirmationQuestion('   <accent>Push to GitHub?</accent> [<muted>no</muted>]: ', false);
+
+        if (!(bool) $helper->ask($input, $this->symfonyStyle, $question)) {
+            ConsoleTheme::info('Push later', sprintf('git push --force -u origin %s', $branchName));
+
+            return;
+        }
+
+        exec(sprintf('git push --force -u origin %s 2>&1', escapeshellarg($branchName)), $pushOutput, $pushReturnCode);
+
+        if ($pushReturnCode === 0) {
+            ConsoleTheme::success(sprintf('Force pushed to origin/%s', $branchName));
+        } else {
+            ConsoleTheme::warning('Push failed - check SSH keys or create repo first');
+            ConsoleTheme::info('Run', sprintf('git push --force -u origin %s', $branchName));
+        }
+    }
+
+    private function runComposerInstall(): void
+    {
+        ConsoleTheme::newLine();
+        ConsoleTheme::section('📦', 'Dependencies');
+
+        $currentDir = getcwd();
+        chdir($this->projectPath);
+
+        $lockPath = $this->projectPath . '/composer.lock';
+
+        if (file_exists($lockPath)) {
+            unlink($lockPath);
+        }
+
+        exec('composer update --no-interaction 2>&1', $output, $returnCode);
 
         if ($returnCode === 0) {
-            $this->writeLine('   ✓ Autoload files regenerated');
+            ConsoleTheme::success('Dependencies updated');
         } else {
-            $this->writeLine('   ⚠️  Failed to regenerate autoload files');
+            ConsoleTheme::warning('Update failed - regenerating autoload...');
+            exec('composer dump-autoload --no-interaction 2>&1', $dumpOutput, $dumpReturnCode);
+
+            if ($dumpReturnCode === 0) {
+                ConsoleTheme::success('Autoload regenerated');
+            } else {
+                ConsoleTheme::warning('Autoload regeneration failed');
+            }
         }
 
         if ($currentDir !== false) {
@@ -628,72 +1193,164 @@ final class PostCreateProject
         }
     }
 
-    private function deleteSelf(): void
+    private function installGitHubActions(InputInterface $input): void
     {
-        $scriptPath = $this->projectPath . '/post-create-project.php';
-        if (file_exists($scriptPath)) {
-            unlink($scriptPath);
-            $this->writeLine('   ✓ Removed post-create-project.php');
-        }
-    }
+        ConsoleTheme::newLine();
+        ConsoleTheme::section('🚀', 'GitHub Actions');
 
-    private function printSuccess(): void
-    {
-        $this->writeLine('');
-        $this->writeLine('╔══════════════════════════════════════════════════════════════╗');
-        $this->writeLine('║                                                              ║');
-        $this->writeLine('║   ✅ Project configured successfully!                        ║');
-        $this->writeLine('║                                                              ║');
-        $this->writeLine('╚══════════════════════════════════════════════════════════════╝');
-        $this->writeLine('');
-        $this->writeLine('Next steps:');
-        $this->writeLine("  1. cd {$this->newPackage}");
-        $this->writeLine('  2. Update author information in composer.json');
-        $this->writeLine('  3. Start building your package in src/');
-        $this->writeLine('  4. Run `composer check` to verify setup');
-        $this->writeLine('');
-        $this->writeLine('Happy coding! 🎉');
-        $this->writeLine('');
-    }
+        $githubPath = $this->projectPath . '/.github';
 
-    private function ask(string $question, string $default = ''): string
-    {
-        $defaultHint = $default !== '' ? " [{$default}]" : '';
-        $this->write("  {$question}{$defaultHint}: ");
-
-        $handle = $this->inputStream ?? fopen('php://stdin', 'r');
-        if ($handle === false) {
-            return $default;
-        }
-
-        $input = fgets($handle);
-
-        if ($this->inputStream === null) {
-            fclose($handle);
-        }
-
-        if ($input === false) {
-            return $default;
-        }
-
-        $input = trim($input);
-
-        return $input !== '' ? $input : $default;
-    }
-
-    private function write(string $message): void
-    {
-        if ($this->outputStream !== null) {
-            fwrite($this->outputStream, $message);
+        if (!is_dir($githubPath)) {
+            ConsoleTheme::warning('No .github directory found');
 
             return;
         }
 
-        echo $message;
+        $helper = $this->getQuestionHelper();
+        $question = new ConfirmationQuestion('   <accent>Install GitHub Actions?</accent> [<muted>yes</muted>]: ', true);
+
+        if ((bool) $helper->ask($input, $this->symfonyStyle, $question)) {
+            ConsoleTheme::success('GitHub Actions ready');
+
+            return;
+        }
+
+        $this->deleteDirectory($githubPath);
+        ConsoleTheme::success('Removed .github directory');
     }
 
-    private function writeLine(string $message): void
+    private function installCursorRules(InputInterface $input): void
     {
-        $this->write($message . PHP_EOL);
+        ConsoleTheme::newLine();
+        ConsoleTheme::section('📋', 'Cursor Rules');
+
+        $helper = $this->getQuestionHelper();
+        $question = new ConfirmationQuestion('   <accent>Install cursor rules?</accent> [<muted>yes</muted>]: ', true);
+
+        if (!(bool) $helper->ask($input, $this->symfonyStyle, $question)) {
+            ConsoleTheme::warning('Skipped');
+
+            return;
+        }
+
+        $cursorPath = $this->projectPath . '/.cursor';
+
+        if (is_dir($cursorPath)) {
+            $this->deleteDirectory($cursorPath);
+            ConsoleTheme::success('Removed old .cursor directory');
+        }
+
+        $currentDir = getcwd();
+        chdir($this->projectPath);
+
+        exec('vendor/bin/cursor-rules install --force 2>&1', $output, $returnCode);
+
+        if ($returnCode === 0) {
+            ConsoleTheme::success('Installed cursor rules');
+        } else {
+            ConsoleTheme::warning('Cursor rules installation failed');
+        }
+
+        if ($currentDir !== false) {
+            chdir($currentDir);
+        }
     }
+
+    private function runComposerFix(): void
+    {
+        ConsoleTheme::newLine();
+        ConsoleTheme::section('🔧', 'Code Quality Fixes');
+
+        $currentDir = getcwd();
+        chdir($this->projectPath);
+
+        passthru('composer fix', $returnCode);
+
+        if ($currentDir !== false) {
+            chdir($currentDir);
+        }
+    }
+
+    private function runComposerCheck(): bool
+    {
+        ConsoleTheme::newLine();
+        ConsoleTheme::section('🔍', 'Quality Checks');
+
+        $currentDir = getcwd();
+        chdir($this->projectPath);
+
+        passthru('composer check', $returnCode);
+
+        if ($currentDir !== false) {
+            chdir($currentDir);
+        }
+
+        return $returnCode === 0;
+    }
+
+    private function deleteSelf(): void
+    {
+        $scriptPath = $this->projectPath . '/post-create-project.php';
+
+        if (!file_exists($scriptPath)) {
+            return;
+        }
+
+        unlink($scriptPath);
+    }
+
+    private function printSuccess(): void
+    {
+        $projectDir = basename($this->projectPath);
+
+        ConsoleTheme::newLine();
+        ConsoleTheme::successBox('Done!', 'Your project is ready.');
+        ConsoleTheme::newLine();
+        ConsoleTheme::list('Next Steps', [
+            'Update author info in <span class="text-orange-400">composer.json</span>',
+            'Start coding in <span class="text-orange-400">src/</span>',
+        ]);
+        ConsoleTheme::newLine();
+        ConsoleTheme::command(sprintf('cd %s', $projectDir));
+    }
+
+    private function printFailure(): void
+    {
+        $projectDir = basename($this->projectPath);
+
+        ConsoleTheme::newLine();
+        ConsoleTheme::warningBox('Done with issues', 'Quality checks failed.');
+        ConsoleTheme::newLine();
+        ConsoleTheme::list('Fix It', [
+            'Run <span class="text-orange-400">composer fix</span>',
+            'Run <span class="text-orange-400">composer check</span>',
+            'Then <span class="text-orange-400">git init && git add -A && git commit</span>',
+        ]);
+        ConsoleTheme::newLine();
+        ConsoleTheme::command(sprintf('cd %s', $projectDir));
+    }
+
+    private function getQuestionHelper(): QuestionHelper
+    {
+        $helper = $this->getHelper('question');
+        assert($helper instanceof QuestionHelper);
+
+        return $helper;
+    }
+
+    private function askQuestion(QuestionHelper $helper, InputInterface $input, Question $question): string
+    {
+        $answer = $helper->ask($input, $this->symfonyStyle, $question);
+
+        if (is_string($answer)) {
+            return $answer;
+        }
+
+        if (is_scalar($answer) || (is_object($answer) && method_exists($answer, '__toString'))) {
+            return (string) $answer;
+        }
+
+        return '';
+    }
+
 }
