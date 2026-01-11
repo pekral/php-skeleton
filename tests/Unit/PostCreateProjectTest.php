@@ -285,7 +285,8 @@ describe(PostCreateProject::class, function (): void {
 
             expect($project->getExampleFilesToDelete())->toBe([
                 'src/Example.php',
-                'tests/Unit/Example.php',
+                'tests/Unit/ExampleTest.php',
+                'tests/Unit/PostCreateProjectTest.php',
             ]);
         });
 
@@ -347,12 +348,20 @@ describe(PostCreateProject::class, function (): void {
                 final class Example {}
                 PHP);
 
-            file_put_contents($tempDir . '/tests/Unit/Example.php', <<<'PHP'
+            file_put_contents($tempDir . '/tests/Unit/ExampleTest.php', <<<'PHP'
                 <?php
 
                 use Pekral\Example\Example;
 
                 it('works', fn () => expect(true)->toBeTrue());
+                PHP);
+
+            file_put_contents($tempDir . '/tests/Unit/PostCreateProjectTest.php', <<<'PHP'
+                <?php
+
+                use Pekral\BuildPackage\PostCreateProject;
+
+                it('tests something', fn () => expect(true)->toBeTrue());
                 PHP);
 
             file_put_contents($tempDir . '/build-package/PostCreateProject.php', <<<'PHP'
@@ -387,7 +396,10 @@ describe(PostCreateProject::class, function (): void {
             expect($composerContent)->toContain('acme/awesome-lib')
                 ->and($composerContent)->toContain('Acme\\\\AwesomeLib\\\\')
                 ->and(file_exists($tempDir . '/src/Example.php'))->toBeFalse()
-                ->and(file_exists($tempDir . '/tests/Unit/Example.php'))->toBeFalse()
+                ->and(file_exists($tempDir . '/tests/Unit/ExampleTest.php'))->toBeFalse()
+                ->and(file_exists($tempDir . '/tests/Unit/PostCreateProjectTest.php'))->toBeFalse()
+                ->and(file_exists($tempDir . '/src/.gitkeep'))->toBeTrue()
+                ->and(file_exists($tempDir . '/tests/Unit/.gitkeep'))->toBeTrue()
                 ->and(is_dir($tempDir . '/build-package'))->toBeFalse()
                 ->and($composerData['scripts'])->not->toHaveKey('post-create-project-cmd')
                 ->and($composerData['scripts'])->toHaveKey('test')
@@ -399,7 +411,9 @@ describe(PostCreateProject::class, function (): void {
             }
 
             array_map('unlink', glob($tempDir . '/src/*') ?: []);
+            array_map('unlink', glob($tempDir . '/src/.*') ?: []);
             array_map('unlink', glob($tempDir . '/tests/Unit/*') ?: []);
+            array_map('unlink', glob($tempDir . '/tests/Unit/.*') ?: []);
             rmdir($tempDir . '/tests/Unit');
             rmdir($tempDir . '/tests');
             rmdir($tempDir . '/src');

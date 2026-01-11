@@ -49,7 +49,8 @@ final class PostCreateProject
 
     private const EXAMPLE_FILES_TO_DELETE = [
         'src/Example.php',
-        'tests/Unit/Example.php',
+        'tests/Unit/ExampleTest.php',
+        'tests/Unit/PostCreateProjectTest.php',
     ];
 
     private const BUILD_PACKAGE_DIRECTORY = 'build-package';
@@ -434,6 +435,33 @@ final class PostCreateProject
                 $this->writeLine("   ✓ Deleted: {$file}");
             }
         }
+
+        $this->createGitkeepFiles();
+    }
+
+    private function createGitkeepFiles(): void
+    {
+        $directories = [
+            'src',
+            'tests/Unit',
+        ];
+
+        foreach ($directories as $dir) {
+            $dirPath = $this->projectPath . '/' . $dir;
+            $gitkeepPath = $dirPath . '/.gitkeep';
+
+            if (is_dir($dirPath) && $this->isDirectoryEmpty($dirPath)) {
+                file_put_contents($gitkeepPath, '');
+                $this->writeLine("   ✓ Created: {$dir}/.gitkeep");
+            }
+        }
+    }
+
+    private function isDirectoryEmpty(string $directory): bool
+    {
+        $files = array_diff(scandir($directory) ?: [], ['.', '..']);
+
+        return count($files) === 0;
     }
 
     private function removeGitDirectory(): void
