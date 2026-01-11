@@ -252,6 +252,7 @@ This package is open-sourced software licensed under the [MIT license](LICENSE).
 
 - GitHub: [@pekral](https://github.com/pekral)
 - Email: kral.petr.88@gmail.com
+- X (Twitter): https://x.com/kral_petr_88 
 
 ---
 
