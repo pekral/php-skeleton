@@ -2,6 +2,11 @@
 
 All notable changes to `arch-app-services` will be documented in this file.
 
+## [Unreleased] - 2026-01-11 (PR #4)
+
+
+- 📝 **Changed**: 
+
 ## [Unreleased] - 2026-01-10
 
 
