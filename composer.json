@@ -64,6 +64,7 @@
   },
   "autoload-dev": {
     "psr-4": {
+      "Pekral\\BuildPackage\\": "build-package/",
       "Pekral\\Test\\": "tests/"
     }
   },
@@ -78,6 +79,9 @@
     "sort-packages": true
   },
   "scripts": {
+    "post-create-project-cmd": [
+      "@php post-create-project.php"
+    ],
     "analyse": [
       "echo \"🔍 Running PHPStan static analysis...\"",
       "vendor/bin/phpstan analyse --memory-limit=2G"
@@ -142,7 +146,7 @@
     ],
     "test:coverage": [
       "echo \"📊 Running coverage tests with 100% minimum...\"",
-      "php -dpcov.enabled=1 -dpcov.directory=. -dxdebug.mode=off vendor/bin/pest tests/Unit/Example.php --coverage --min=100 --coverage-filter=src"
+      "php -dpcov.enabled=1 -dpcov.directory=. -dxdebug.mode=off vendor/bin/pest --coverage --min=100"
     ]
   }
 }
