@@ -2,6 +2,14 @@
 
 All notable changes to `arch-app-services` will be documented in this file.
 
+## [Unreleased] - 2026-01-12 (PR #7)
+
+
+- 🔧 **Changed**: bump peter-evans/create-pull-request from 6 to 8
+- 🐛 **Fixed**: readme file
+- 📝 **Changed**: fixes
+- 📝 **Changed**: fixes
+
 ## [Unreleased] - 2026-01-11
 
 
