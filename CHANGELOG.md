@@ -2,6 +2,11 @@
 
 All notable changes to `arch-app-services` will be documented in this file.
 
+## [Unreleased] - 2026-01-12 (PR #6)
+
+
+- 🔧 **Changed**: bump actions/checkout from 4 to 6
+
 ## [Unreleased] - 2026-01-12 (PR #7)
 
 
