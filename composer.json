@@ -79,74 +79,19 @@
     "sort-packages": true
   },
   "scripts": {
-    "post-create-project-cmd": [
-      "@php post-create-project.php"
-    ],
-    "analyse": [
-      "echo \"🔍 Running PHPStan static analysis...\"",
-      "vendor/bin/phpstan analyse --memory-limit=2G"
-    ],
-    "check": [
-      "echo \"🚀 Running full quality check...\"",
-      "@composer-normalize-check",
-      "@phpcs-check",
-      "@pint-check",
-      "@rector-check",
-      "@analyse",
-      "@security-audit",
-      "@test:coverage"
-    ],
-    "composer-normalize-check": [
-      "echo \"📝 Checking Composer normalize...\"",
-      "composer normalize --dry-run"
-    ],
-    "composer-normalize-fix": [
-      "echo \"📝 Running Composer normalize fix...\"",
-      "composer normalize || true"
-    ],
-    "coverage": [
-      "echo \"📊 Running code coverage analysis...\"",
-      "@test:coverage"
-    ],
-    "fix": [
-      "echo \"🔧 Running all fixes...\"",
-      "@composer-normalize-fix",
-      "@rector-fix",
-      "@pint-fix",
-      "@phpcs-fix",
-      "echo \"✅ All fixes completed!\""
-    ],
-    "phpcs-check": [
-      "echo \"✅ Running PHP CodeSniffer check...\"",
-      "vendor/bin/phpcs --standard=ruleset.xml src/ tests/ build-package/"
-    ],
-    "phpcs-fix": [
-      "echo \"🔧 Running PHP CodeSniffer fix...\"",
-      "vendor/bin/phpcbf --standard=ruleset.xml src/ tests/ build-package/ || true"
-    ],
-    "pint-check": [
-      "echo \"🎨 Running Laravel Pint check...\"",
-      "vendor/bin/pint src/ tests/ build-package/ --test"
-    ],
-    "pint-fix": [
-      "echo \"🎨 Running Laravel Pint fixes...\"",
-      "vendor/bin/pint src/ tests/ build-package/"
-    ],
-    "rector-check": [
-      "echo \"🔄 Running Rector check (dry-run)...\"",
-      "vendor/bin/rector process --dry-run"
-    ],
-    "rector-fix": [
-      "echo \"🔄 Running Rector fixes...\"",
-      "vendor/bin/rector process"
-    ],
-    "security-audit": [
-      "echo \"🔒 Running Composer security audit...\"",
-      "composer audit --format=summary"
-    ],
-    "test:coverage": [
-      "echo \"📊 Running coverage tests with 100% minimum...\"",
-      "php -dpcov.enabled=1 -dpcov.directory=. -dxdebug.mode=off vendor/bin/pest --coverage --min=100"
-    ]
+    "analyse": "vendor/bin/phpstan analyse --memory-limit=2G",
+    "check": "composer run composer-normalize-check && composer run phpcs-check && composer run pint-check && composer run rector-check && composer run analyse && composer run security-audit && composer run test:coverage",
+    "composer-normalize-check": "composer normalize --dry-run",
+    "composer-normalize-fix": "composer normalize",
+    "coverage": "@test:coverage",
+    "fix": "composer run composer-normalize-fix && composer run rector-fix && composer run pint-fix && composer run phpcs-fix || true",
+    "phpcs-check": "vendor/bin/phpcs --standard=ruleset.xml src/ tests/",
+    "phpcs-fix": "vendor/bin/phpcbf --standard=ruleset.xml src/ tests/ || true",
+    "pint-check": "vendor/bin/pint src/ tests/ --test",
+    "pint-fix": "vendor/bin/pint src/ tests/",
+    "rector-check": "vendor/bin/rector process --dry-run --no-progress-bar",
+    "rector-fix": "vendor/bin/rector process --no-progress-bar",
+    "security-audit": "composer audit --format=summary",
+    "test:coverage": "php -dpcov.enabled=1 -dpcov.directory=. -dxdebug.mode=off vendor/bin/pest --coverage --min=100"
   }
 }

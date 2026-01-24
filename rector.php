@@ -12,12 +12,5 @@ return static function (RectorConfig $rectorConfig): void {
         __DIR__ . '/build-package',
     ]);
 
-    $rectorConfig->skip([
-        __DIR__ . '/vendor',
-        SimplifyQuoteEscapeRector::class => [
-            __DIR__ . '/build-package',
-        ],
-    ]);
-
     $rectorConfig->import(__DIR__ . '/vendor/pekral/rector-rules/rector.php');
 };
