@@ -2,6 +2,14 @@
 
 All notable changes to `arch-app-services` will be documented in this file.
 
+## [Unreleased] - 2026-01-24
+
+
+- 🐛 **Fixed**: composer scripts
+- 🔧 **Changed**: composer update dependencies
+- 🔧 **Changed**: composer update dependencies
+- 🔧 **Changed**: bump actions/cache from 4 to 5
+
 ## [Unreleased] - 2026-01-12 (PR #5)
 
 
