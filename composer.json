@@ -80,6 +80,9 @@
     "sort-packages": true
   },
   "scripts": {
+    "post-create-project-cmd": [
+      "@php post-create-project.php"
+    ],
     "post-update-cmd": [
       "@composer outdated -D"
     ],
