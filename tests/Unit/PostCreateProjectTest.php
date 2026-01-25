@@ -314,6 +314,52 @@ describe(PostCreateProject::class, function (): void {
         });
     });
 
+    describe('extractRepoNameFromUrl', function (): void {
+        it('extracts repo name from valid GitHub URLs', function (string $url, string $expected): void {
+            $project = new PostCreateProject();
+
+            expect($project->extractRepoNameFromUrl($url))->toBe($expected);
+        })->with([
+            ['https://github.com/acme/package', 'acme/package'],
+            ['https://github.com/vendor/my-lib', 'vendor/my-lib'],
+            ['https://github.com/user/repo.git', 'user/repo'],
+        ]);
+
+        it('returns null for invalid URLs', function (string $url): void {
+            $project = new PostCreateProject();
+
+            expect($project->extractRepoNameFromUrl($url))->toBeNull();
+        })->with([
+            'https://gitlab.com/acme/package',
+            'https://github.com/invalid',
+            'git@github.com:acme/package.git',
+            'not-a-url',
+            '',
+        ]);
+    });
+
+    describe('isGhCliInstalled', function (): void {
+        it('returns boolean', function (): void {
+            $project = new PostCreateProject();
+
+            expect($project->isGhCliInstalled())->toBeBool();
+        });
+    });
+
+    describe('githubRepositoryExists', function (): void {
+        it('returns false for invalid URL', function (): void {
+            $project = new PostCreateProject();
+
+            expect($project->githubRepositoryExists('invalid-url'))->toBeFalse();
+        });
+
+        it('returns boolean for valid URL format', function (): void {
+            $project = new PostCreateProject();
+
+            expect($project->githubRepositoryExists('https://github.com/nonexistent/repo-xyz-123'))->toBeBool();
+        });
+    });
+
     describe('integration', function (): void {
         it('performs full replacement workflow on temp directory', function (): void {
             $tempDir = sys_get_temp_dir() . '/php-skeleton-test-' . uniqid();

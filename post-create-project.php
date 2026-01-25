@@ -9,6 +9,6 @@ use Pekral\BuildPackage\PostCreateProject;
 use Symfony\Component\Console\Application;
 
 $application = new Application('PHP Skeleton', '1.0.0');
-$application->add(new PostCreateProject());
+$application->addCommand(new PostCreateProject());
 $application->setDefaultCommand('configure', true);
 $application->run();
