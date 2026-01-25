@@ -409,6 +409,8 @@ final class PostCreateProject extends Command
         );
         $this->newGithubUrl = $this->askQuestion($helper, $input, $question);
 
+        $this->checkAndCreateGithubRepository($input);
+
         ConsoleTheme::newLine();
         ConsoleTheme::info('Project spec', 'paste text, end with empty line (or skip with Enter)');
 
@@ -1351,6 +1353,92 @@ PHP;
         }
 
         return '';
+    }
+
+    public function isGhCliInstalled(): bool
+    {
+        exec('which gh 2>/dev/null', $output, $returnCode);
+
+        return $returnCode === 0;
+    }
+
+    public function githubRepositoryExists(string $githubUrl): bool
+    {
+        $repoName = $this->extractRepoNameFromUrl($githubUrl);
+
+        if ($repoName === null) {
+            return false;
+        }
+
+        exec(sprintf('gh repo view %s 2>/dev/null', escapeshellarg($repoName)), $output, $returnCode);
+
+        return $returnCode === 0;
+    }
+
+    public function extractRepoNameFromUrl(string $githubUrl): ?string
+    {
+        if (preg_match('#^https://github\.com/([^/]+/[^/]+?)(?:\.git)?$#', $githubUrl, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
+    }
+
+    private function createGithubRepository(InputInterface $input, string $repoName): bool
+    {
+        $helper = $this->getQuestionHelper();
+
+        $question = new ConfirmationQuestion('   <accent>Public repository?</accent> [<muted>yes</muted>]: ', true);
+        $isPublic = (bool) $helper->ask($input, $this->symfonyStyle, $question);
+
+        $visibility = $isPublic ? '--public' : '--private';
+        $command = sprintf('gh repo create %s %s 2>&1', escapeshellarg($repoName), $visibility);
+
+        exec($command, $output, $returnCode);
+
+        return $returnCode === 0;
+    }
+
+    private function checkAndCreateGithubRepository(InputInterface $input): void
+    {
+        if (!$this->isGhCliInstalled()) {
+            return;
+        }
+
+        $repoName = $this->extractRepoNameFromUrl($this->newGithubUrl);
+
+        if ($repoName === null) {
+            return;
+        }
+
+        ConsoleTheme::newLine();
+        ConsoleTheme::section('🔍', 'GitHub Repository');
+
+        if ($this->githubRepositoryExists($this->newGithubUrl)) {
+            ConsoleTheme::success(sprintf('Repository %s exists', $repoName));
+
+            return;
+        }
+
+        ConsoleTheme::warning(sprintf('Repository %s does not exist', $repoName));
+
+        $helper = $this->getQuestionHelper();
+        $question = new ConfirmationQuestion('   <accent>Create repository now?</accent> [<muted>yes</muted>]: ', true);
+
+        if (!(bool) $helper->ask($input, $this->symfonyStyle, $question)) {
+            $this->cleanupProjectDirectory('Repository does not exist and user declined to create it.');
+            exit(1);
+        }
+
+        if ($this->createGithubRepository($input, $repoName)) {
+            ConsoleTheme::success(sprintf('Created repository %s', $repoName));
+
+            return;
+        }
+
+        ConsoleTheme::errorBox('Failed to create repository', 'Check your GitHub CLI authentication.');
+        $this->cleanupProjectDirectory('Failed to create GitHub repository.');
+        exit(1);
     }
 
 }
