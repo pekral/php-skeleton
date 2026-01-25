@@ -40,7 +40,7 @@
     "php": "^8.4",
     "ergebnis/composer-normalize": "^2.48.2",
     "laravel/pint": "^1.27.0",
-    "nunomaduro/termwind": "^2.3.3",
+    "nunomaduro/termwind": "^2",
     "pekral/cursor-rules": "^0.3",
     "pekral/phpcs-rules": "^0.4.5",
     "pekral/rector-rules": "^0.4.7",
@@ -53,7 +53,7 @@
     "phpstan/phpstan-phpunit": "^2.0.12",
     "roave/security-advisories": "dev-latest",
     "squizlabs/php_codesniffer": ">=4.0.1",
-    "symfony/console": "^7.4.4"
+    "symfony/console": "^8.0.4"
   },
   "minimum-stability": "dev",
   "prefer-stable": true,
@@ -79,6 +79,9 @@
     "sort-packages": true
   },
   "scripts": {
+    "post-update-cmd": [
+      "@composer outdated -D"
+    ],
     "analyse": "vendor/bin/phpstan analyse --memory-limit=2G",
     "check": "composer run composer-normalize-check && composer run phpcs-check && composer run pint-check && composer run rector-check && composer run analyse && composer run security-audit && composer run test:coverage",
     "composer-normalize-check": "composer normalize --dry-run",
