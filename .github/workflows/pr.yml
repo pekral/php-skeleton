@@ -6,7 +6,7 @@ on:
   push:
     branches: [ master ]
 
-# To add more PHP versions, change ['8.4'] to ['8.4', '8.5'] in all matrix definitions below
+# PHP versions to test against
 
 jobs:
   phpcs-check:
@@ -15,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        php-version: ['8.4']
+        php-version: ['8.4', '8.5']
 
     steps:
       - name: Checkout code
@@ -50,7 +50,7 @@ jobs:
 
     strategy:
       matrix:
-        php-version: ['8.4']
+        php-version: ['8.4', '8.5']
 
     steps:
       - name: Checkout code
@@ -85,7 +85,7 @@ jobs:
 
     strategy:
       matrix:
-        php-version: ['8.4']
+        php-version: ['8.4', '8.5']
 
     steps:
       - name: Checkout code
@@ -120,7 +120,7 @@ jobs:
 
     strategy:
       matrix:
-        php-version: ['8.4']
+        php-version: ['8.4', '8.5']
 
     steps:
       - name: Checkout code
@@ -155,7 +155,7 @@ jobs:
 
     strategy:
       matrix:
-        php-version: ['8.4']
+        php-version: ['8.4', '8.5']
 
     services:
       dynamodb:
@@ -200,7 +200,7 @@ jobs:
 
     strategy:
       matrix:
-        php-version: ['8.4']
+        php-version: ['8.4', '8.5']
 
     steps:
       - name: Checkout code
@@ -235,7 +235,7 @@ jobs:
 
     strategy:
       matrix:
-        php-version: ['8.4']
+        php-version: ['8.4', '8.5']
 
     steps:
       - name: Checkout code

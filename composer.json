@@ -15,7 +15,8 @@
     "rector",
     "quality",
     "best-practices",
-    "php84"
+    "php84",
+    "php85"
   ],
   "authors": [
     {
