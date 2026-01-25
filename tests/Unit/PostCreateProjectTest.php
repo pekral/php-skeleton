@@ -156,10 +156,14 @@ describe(PostCreateProject::class, function (): void {
 
             expect($replacements)->toHaveKey('pekral/php-skeleton')
                 ->and($replacements['pekral/php-skeleton'])->toBe('acme/awesome-lib')
-                ->and($replacements)->toHaveKey('Pekral\\Example')
-                ->and($replacements['Pekral\\Example'])->toBe('Acme\\AwesomeLib')
-                ->and($replacements)->toHaveKey('Pekral\\Test')
-                ->and($replacements['Pekral\\Test'])->toBe('Acme\\Test')
+                ->and($replacements)->toHaveKey('Pekral\\Example\\')
+                ->and($replacements['Pekral\\Example\\'])->toBe('Acme\\AwesomeLib\\')
+                ->and($replacements)->toHaveKey('Pekral\\Example;')
+                ->and($replacements['Pekral\\Example;'])->toBe('Acme\\AwesomeLib;')
+                ->and($replacements)->toHaveKey('Pekral\\Test\\')
+                ->and($replacements['Pekral\\Test\\'])->toBe('Acme\\Test\\')
+                ->and($replacements)->toHaveKey('Pekral\\Test;')
+                ->and($replacements['Pekral\\Test;'])->toBe('Acme\\Test;')
                 ->and($replacements)->toHaveKey('https://github.com/pekral/php-skeleton')
                 ->and($replacements['https://github.com/pekral/php-skeleton'])->toBe('https://github.com/acme/awesome-lib')
                 ->and($replacements)->toHaveKey('PHP Skeleton')
@@ -180,7 +184,7 @@ describe(PostCreateProject::class, function (): void {
     });
 
     describe('buildReplacements', function (): void {
-        it('includes escaped namespaces for JSON files', function (): void {
+        it('includes escaped namespaces for JSON files with trailing backslash', function (): void {
             $project = new PostCreateProject();
             $project->configurePackage(
                 'acme/lib',
@@ -192,10 +196,10 @@ describe(PostCreateProject::class, function (): void {
 
             $replacements = $project->buildReplacements();
 
-            expect($replacements)->toHaveKey('Pekral\\\\Example')
-                ->and($replacements['Pekral\\\\Example'])->toBe('Acme\\\\Lib')
-                ->and($replacements)->toHaveKey('Pekral\\\\Test')
-                ->and($replacements['Pekral\\\\Test'])->toBe('Acme\\\\Test');
+            expect($replacements)->toHaveKey('Pekral\\\\Example\\\\')
+                ->and($replacements['Pekral\\\\Example\\\\'])->toBe('Acme\\\\Lib\\\\')
+                ->and($replacements)->toHaveKey('Pekral\\\\Test\\\\')
+                ->and($replacements['Pekral\\\\Test\\\\'])->toBe('Acme\\\\Test\\\\');
         });
 
         it('replaces author information with placeholders', function (): void {

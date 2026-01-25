@@ -69,6 +69,7 @@ final class ConsoleTheme
         render(sprintf(
             <<<'HTML'
                 <div class="mt-1 mb-1">
+                    <div class="text-gray-700 mb-1">────────────────────────────────────────────────────────────────────────────────</div>
                     <div class="flex">
                         <span class="text-orange-500 mr-2">%s</span>
                         <span class="font-bold text-white">%s</span>
@@ -155,16 +156,13 @@ final class ConsoleTheme
     public static function successBox(string $title, string $message = ''): void
     {
         $messageHtml = $message !== ''
-            ? sprintf('<div class="text-gray-400 ml-3 mt-1">%s</div>', $message)
+            ? sprintf('<div class="text-gray-300 mt-1 ml-4">%s</div>', $message)
             : '';
 
         render(sprintf(
             <<<'HTML'
                 <div class="my-1">
-                    <div class="flex">
-                        <span class="bg-green-500 text-white px-1 font-bold">✓</span>
-                        <span class="bg-gray-800 text-white px-2 font-bold">%s</span>
-                    </div>
+                    <div class="w-full bg-green-600 text-white py-1 px-2 font-bold">✓   %s</div>
                     %s
                 </div>
                 HTML,
@@ -176,16 +174,13 @@ final class ConsoleTheme
     public static function warningBox(string $title, string $message = ''): void
     {
         $messageHtml = $message !== ''
-            ? sprintf('<div class="text-gray-400 ml-3 mt-1">%s</div>', $message)
+            ? sprintf('<div class="text-gray-300 mt-1 ml-4">%s</div>', $message)
             : '';
 
         render(sprintf(
             <<<'HTML'
                 <div class="my-1">
-                    <div class="flex">
-                        <span class="bg-yellow-500 text-black px-1 font-bold">⚠</span>
-                        <span class="bg-gray-800 text-white px-2 font-bold">%s</span>
-                    </div>
+                    <div class="w-full bg-yellow-500 text-black py-1 px-2 font-bold">⚠   %s</div>
                     %s
                 </div>
                 HTML,
@@ -197,16 +192,13 @@ final class ConsoleTheme
     public static function errorBox(string $title, string $message = ''): void
     {
         $messageHtml = $message !== ''
-            ? sprintf('<div class="text-gray-400 ml-3 mt-1">%s</div>', $message)
+            ? sprintf('<div class="text-gray-300 mt-1 ml-4">%s</div>', $message)
             : '';
 
         render(sprintf(
             <<<'HTML'
                 <div class="my-1">
-                    <div class="flex">
-                        <span class="bg-red-500 text-white px-1 font-bold">✗</span>
-                        <span class="bg-gray-800 text-white px-2 font-bold">%s</span>
-                    </div>
+                    <div class="w-full bg-red-500 text-white py-1 px-2 font-bold">✗   %s</div>
                     %s
                 </div>
                 HTML,
@@ -257,7 +249,7 @@ final class ConsoleTheme
 
         foreach ($items as $index => $item) {
             $itemsHtml .= sprintf(
-                '<div class="flex ml-3"><span class="text-orange-500 w-4">%d.</span><span class="text-gray-300">%s</span></div>',
+                '<div class="flex ml-4"><span class="text-orange-500 w-4">%d.</span><span class="text-gray-300">%s</span></div>',
                 $index + 1,
                 $item,
             );
@@ -266,6 +258,7 @@ final class ConsoleTheme
         render(sprintf(
             <<<'HTML'
                 <div class="my-1">
+                    <div class="text-gray-700 mb-1">────────────────────────────────────────────────────────────────────────────────</div>
                     <div class="flex">
                         <span class="text-orange-500 mr-1">📝</span>
                         <span class="font-bold text-white">%s</span>

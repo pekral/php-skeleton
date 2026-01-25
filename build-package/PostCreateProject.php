@@ -186,16 +186,18 @@ final class PostCreateProject extends Command
         $replacements = [
             $this->oldDisplayName => $this->newDisplayName,
             $this->oldGithubUrl => $this->newGithubUrl,
-            $this->oldNamespace => $this->newNamespace,
+            $this->oldNamespace . '\\' => $this->newNamespace . '\\',
+            $this->oldNamespace . ';' => $this->newNamespace . ';',
             $this->oldPackageName => $this->newPackageName,
-            $this->oldTestNamespace => $this->newTestNamespace,
+            $this->oldTestNamespace . '\\' => $this->newTestNamespace . '\\',
+            $this->oldTestNamespace . ';' => $this->newTestNamespace . ';',
             '@pekral' => '@' . $this->newVendor,
             'kral.petr.88@gmail.com' => 'your.email@example.com',
             'pekral' => $this->newVendor,
             'Pekral' => $this->toStudlyCase($this->newVendor),
             'Petr Král' => 'Your Name',
-            str_replace('\\', '\\\\', $this->oldNamespace) => str_replace('\\', '\\\\', $this->newNamespace),
-            str_replace('\\', '\\\\', $this->oldTestNamespace) => str_replace('\\', '\\\\', $this->newTestNamespace),
+            str_replace('\\', '\\\\', $this->oldNamespace) . '\\\\' => str_replace('\\', '\\\\', $this->newNamespace) . '\\\\',
+            str_replace('\\', '\\\\', $this->oldTestNamespace) . '\\\\' => str_replace('\\', '\\\\', $this->newTestNamespace) . '\\\\',
         ];
 
         uksort($replacements, static fn (string $a, string $b): int => strlen($b) <=> strlen($a));

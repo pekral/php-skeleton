@@ -80,11 +80,11 @@
     "sort-packages": true
   },
   "scripts": {
-    "post-create-project-cmd": [
-      "@php post-create-project.php"
-    ],
     "post-update-cmd": [
       "@composer outdated -D"
+    ],
+    "post-create-project-cmd": [
+      "@php post-create-project.php"
     ],
     "analyse": "vendor/bin/phpstan analyse --memory-limit=2G",
     "check": "composer run composer-normalize-check && composer run phpcs-check && composer run pint-check && composer run rector-check && composer run analyse && composer run security-audit && composer run test:coverage",
