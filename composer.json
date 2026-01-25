@@ -40,10 +40,10 @@
     "php": "^8.4",
     "ergebnis/composer-normalize": "^2.48.2",
     "laravel/pint": "^1.27.0",
-    "nunomaduro/termwind": "^2.3.3",
-    "pekral/cursor-rules": "dev-master",
-    "pekral/phpcs-rules": "dev-master",
-    "pekral/rector-rules": "dev-master",
+    "nunomaduro/termwind": "^2",
+    "pekral/cursor-rules": "^0.3",
+    "pekral/phpcs-rules": "^0.4.5",
+    "pekral/rector-rules": "^0.4.7",
     "pestphp/pest": "^4.3.1",
     "pestphp/pest-plugin-type-coverage": "^4.0.3",
     "phpstan/extension-installer": "^1.4.3",
@@ -53,7 +53,7 @@
     "phpstan/phpstan-phpunit": "^2.0.12",
     "roave/security-advisories": "dev-latest",
     "squizlabs/php_codesniffer": ">=4.0.1",
-    "symfony/console": "^7.4.3"
+    "symfony/console": "^8.0.4"
   },
   "minimum-stability": "dev",
   "prefer-stable": true,
@@ -79,19 +79,21 @@
     "sort-packages": true
   },
   "scripts": {
+    "post-update-cmd": [
+      "@composer outdated -D"
+    ],
     "analyse": "vendor/bin/phpstan analyse --memory-limit=2G",
     "check": "composer run composer-normalize-check && composer run phpcs-check && composer run pint-check && composer run rector-check && composer run analyse && composer run security-audit && composer run test:coverage",
     "composer-normalize-check": "composer normalize --dry-run",
     "composer-normalize-fix": "composer normalize",
-    "coverage": "@test:coverage",
     "fix": "composer run composer-normalize-fix && composer run rector-fix && composer run pint-fix && composer run phpcs-fix || true",
     "phpcs-check": "vendor/bin/phpcs --standard=ruleset.xml src/ tests/",
     "phpcs-fix": "vendor/bin/phpcbf --standard=ruleset.xml src/ tests/ || true",
-    "pint-check": "vendor/bin/pint src/ tests/ --test",
-    "pint-fix": "vendor/bin/pint src/ tests/",
-    "rector-check": "vendor/bin/rector process --dry-run --no-progress-bar",
-    "rector-fix": "vendor/bin/rector process --no-progress-bar",
-    "security-audit": "composer audit --format=summary",
-    "test:coverage": "php -dpcov.enabled=1 -dpcov.directory=. -dxdebug.mode=off vendor/bin/pest --coverage --min=100"
+    "pint-check": "vendor/bin/pint src/ tests/ --test --parallel",
+    "pint-fix": "vendor/bin/pint src/ tests/ --parallel",
+    "rector-check": "vendor/bin/rector process --dry-run",
+    "rector-fix": "vendor/bin/rector process",
+    "security-audit": "composer audit",
+    "test:coverage": "php -dpcov.enabled=1 -dpcov.directory=. -dxdebug.mode=off -dpcov.exclude=\"~vendor~\" vendor/bin/pest --coverage --min=100"
   }
 }
