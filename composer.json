@@ -41,9 +41,9 @@
     "ergebnis/composer-normalize": "^2.48.2",
     "laravel/pint": "^1.27.0",
     "nunomaduro/termwind": "^2.3.3",
-    "pekral/cursor-rules": "dev-master",
-    "pekral/phpcs-rules": "dev-master",
-    "pekral/rector-rules": "dev-master",
+    "pekral/cursor-rules": "^0.3",
+    "pekral/phpcs-rules": "^0.4.5",
+    "pekral/rector-rules": "^0.4.7",
     "pestphp/pest": "^4.3.1",
     "pestphp/pest-plugin-type-coverage": "^4.0.3",
     "phpstan/extension-installer": "^1.4.3",
@@ -53,7 +53,7 @@
     "phpstan/phpstan-phpunit": "^2.0.12",
     "roave/security-advisories": "dev-latest",
     "squizlabs/php_codesniffer": ">=4.0.1",
-    "symfony/console": "^7.4.3"
+    "symfony/console": "^7.4.4"
   },
   "minimum-stability": "dev",
   "prefer-stable": true,
