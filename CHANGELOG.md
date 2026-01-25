@@ -5,6 +5,13 @@ All notable changes to `arch-app-services` will be documented in this file.
 ## [Unreleased] - 2026-01-25
 
 
+- 🐛 **Fixed**: installer
+- 🐛 **Fixed**: run installer
+- ✨ **Added**: GIT repository checker in installer
+
+## [Unreleased] - 2026-01-25
+
+
 - 🐛 **Fixed**: run installer
 - ✨ **Added**: GIT repository checker in installer
 
