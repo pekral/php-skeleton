@@ -2,6 +2,16 @@
 
 All notable changes to `arch-app-services` will be documented in this file.
 
+## [Unreleased] - 2026-01-25 (PR #10)
+
+
+- 🔧 **Changed**: update composer.json file with run some tools in parallel mode
+- 🔧 **Changed**: composer update dependnecies
+- 🔧 **Changed**: update dependencies
+- 🐛 **Fixed**: composer scripts
+- 🔧 **Changed**: composer update dependencies
+- 🔧 **Changed**: composer update dependencies
+
 ## [Unreleased] - 2026-01-24
 
 
