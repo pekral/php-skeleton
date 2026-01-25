@@ -86,15 +86,14 @@
     "check": "composer run composer-normalize-check && composer run phpcs-check && composer run pint-check && composer run rector-check && composer run analyse && composer run security-audit && composer run test:coverage",
     "composer-normalize-check": "composer normalize --dry-run",
     "composer-normalize-fix": "composer normalize",
-    "coverage": "@test:coverage",
     "fix": "composer run composer-normalize-fix && composer run rector-fix && composer run pint-fix && composer run phpcs-fix || true",
     "phpcs-check": "vendor/bin/phpcs --standard=ruleset.xml src/ tests/",
     "phpcs-fix": "vendor/bin/phpcbf --standard=ruleset.xml src/ tests/ || true",
-    "pint-check": "vendor/bin/pint src/ tests/ --test",
-    "pint-fix": "vendor/bin/pint src/ tests/",
-    "rector-check": "vendor/bin/rector process --dry-run --no-progress-bar",
-    "rector-fix": "vendor/bin/rector process --no-progress-bar",
-    "security-audit": "composer audit --format=summary",
-    "test:coverage": "php -dpcov.enabled=1 -dpcov.directory=. -dxdebug.mode=off vendor/bin/pest --coverage --min=100"
+    "pint-check": "vendor/bin/pint src/ tests/ --test --parallel",
+    "pint-fix": "vendor/bin/pint src/ tests/ --parallel",
+    "rector-check": "vendor/bin/rector process --dry-run",
+    "rector-fix": "vendor/bin/rector process",
+    "security-audit": "composer audit",
+    "test:coverage": "php -dpcov.enabled=1 -dpcov.directory=. -dxdebug.mode=off -dpcov.exclude=\"~vendor~\" vendor/bin/pest --coverage --min=100"
   }
 }
